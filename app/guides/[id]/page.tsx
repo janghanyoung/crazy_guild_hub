@@ -2,6 +2,9 @@ import Link from "next/link";
 import PageContainer from "../../../components/ui/PageContainer";
 import { getGuide } from "../../../lib/supabase/guides";
 
+
+export const dynamic = "force-dynamic";
+
 const categoryLabel: Record<string, string> = {
   raid: "레이드 공략",
   collectible: "내실 공략",

@@ -11,6 +11,9 @@ const categoryLabel: Record<string, string> = {
   general: "일반",
 };
 
+
+export const dynamic = "force-dynamic";
+
 export default async function GuidesPage() {
   const guides = await getGuides();
 

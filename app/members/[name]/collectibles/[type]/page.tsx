@@ -113,10 +113,10 @@ export default async function CollectibleDetailPage({
     );
 
     const rowMaxPoint = Number(
-      getVal<number>(rowRecord, "MaxPoint", "maxPoint") ?? 0
+      getVal<number>(rowRecord, "MaxPoint", "maxPoint") ?? 1
     );
 
-    return rowMaxPoint > 0 && rowPoint < rowMaxPoint;
+    return rowPoint < rowMaxPoint;
   });
 
   const percent = maxPoint > 0 ? Math.round((point / maxPoint) * 100) : 0;
@@ -237,7 +237,7 @@ export default async function CollectibleDetailPage({
             );
 
             const rowMaxPoint = Number(
-              getVal<number>(rowRecord, "MaxPoint", "maxPoint") ?? 0
+              getVal<number>(rowRecord, "MaxPoint", "maxPoint") ?? 1
             );
 
             const rowPercent =
@@ -263,14 +263,14 @@ export default async function CollectibleDetailPage({
                       {rowPercent}%
                     </p>
 
-                    <Link  
-                    href={`/guides/new?category=collectible&targetType=${encodeURIComponent(
+                    <Link
+                      href={`/guides/new?category=collectible&targetType=${encodeURIComponent(
                         collectibleType
-                    )}&targetName=${encodeURIComponent(rowName)}`}
-                    className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-300 transition hover:bg-violet-500/10"
+                      )}&targetName=${encodeURIComponent(rowName)}`}
+                      className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-300 transition hover:bg-violet-500/10"
                     >
-                     공략 작성/보기
-                     </Link>
+                      공략 작성/보기
+                    </Link>
                   </div>
                 </div>
 
