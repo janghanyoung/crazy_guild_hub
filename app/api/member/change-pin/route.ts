@@ -26,11 +26,11 @@ export async function POST(request: Request) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    return NextResponse.json(
-      { message: "서버 Supabase 환경변수가 없습니다." },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { message: "정확한 비밀번호를 입력해주세요." },
+    { status: 401 }
+  );
+}
 
   const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
