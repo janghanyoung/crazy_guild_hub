@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PageContainer from "../../../components/ui/PageContainer";
 import { getGuide } from "../../../lib/supabase/guides";
+import MarkdownViewer from "../../../components/guides/MarkdownViewer";
 
 
 export const dynamic = "force-dynamic";
@@ -73,9 +74,9 @@ export default async function GuideDetailPage({
           </a>
         )}
 
-        <div className="mt-8 whitespace-pre-wrap rounded-2xl bg-zinc-950 p-5 text-sm leading-7 text-zinc-200">
-          {guide.content || "내용 없음"}
-        </div>
+        <div className="mt-8 rounded-2xl bg-zinc-950 p-5">  
+          <MarkdownViewer content={guide.content} />
+          </div>
       </article>
     </PageContainer>
   );
