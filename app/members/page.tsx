@@ -15,15 +15,18 @@ type LostArkProfile = {
   ExpeditionLevel?: number;
 };
 
-async function getProfile(characterName: string): Promise<LostArkProfile | null> {
-  const baseUrl =
-    process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
+async function getProfile(characterName: string) {
+  const apiKey = process.env.LOA_API_KEY;
 
   const response = await fetch(
-    `${baseUrl}/api/lostark/profile/${encodeURIComponent(characterName)}`,
-    { cache: "no-store" }
+    `https://developer-lostark.game.onstove.com/armories/characters/${encodeURIComponent(characterName)}/profiles`,
+    {
+      headers: {
+        accept: "application/json",
+        authorization: `bearer ${apiKey}`,
+      },
+      cache: "no-store",
+    }
   );
 
   if (!response.ok) {
@@ -32,6 +35,7 @@ async function getProfile(characterName: string): Promise<LostArkProfile | null>
 
   return response.json();
 }
+
 
 export default async function MembersPage() {
   const profiles = await Promise.all(
