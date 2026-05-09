@@ -23,6 +23,8 @@ type Annotation = {
   height: number;
   text?: string;
   imageSrc?: string;
+  x2?: number;
+  y2?: number;
 };
 
 type Props = {
@@ -289,31 +291,42 @@ export default function GuideImageUploader({
     const point = getRelativePoint(event);
 
     if (interaction.type === "draw") {
-      const startX = interaction.startX;
-      const startY = interaction.startY;
+  const startX = interaction.startX;
+  const startY = interaction.startY;
+
+  setAnnotations((prev) =>
+    prev.map((item) => {
+      if (item.id !== interaction.annotation.id) return item;
+
+      if (item.tool === "arrow") {
+        return {
+          ...item,
+          x: startX,
+          y: startY,
+          x2: point.x,
+          y2: point.y,
+          width: Math.abs(point.x - startX),
+          height: Math.abs(point.y - startY),
+        };
+      }
 
       const x = Math.min(startX, point.x);
       const y = Math.min(startY, point.y);
       const width = Math.abs(point.x - startX);
       const height = Math.abs(point.y - startY);
 
-      setAnnotations((prev) =>
-        prev.map((item) =>
-          item.id === interaction.annotation.id
-            ? {
-                ...item,
-                x,
-                y,
-                width: item.tool === "text" ? Math.max(width, 160) : width,
-                height: item.tool === "text" ? Math.max(height, 44) : height,
-              }
-            : item
-        )
-      );
+      return {
+        ...item,
+        x,
+        y,
+        width: item.tool === "text" ? Math.max(width, 160) : width,
+        height: item.tool === "text" ? Math.max(height, 44) : height,
+      };
+    })
+  );
 
-      return;
-    }
-
+  return;
+}
     if (interaction.type === "move") {
       const dx = point.x - interaction.startX;
       const dy = point.y - interaction.startY;
@@ -481,31 +494,32 @@ export default function GuideImageUploader({
       }
 
       if (annotation.tool === "arrow") {
-        const x1 = x;
-        const y1 = y;
-        const x2 = x + width;
-        const y2 = y + height;
-        const angle = Math.atan2(y2 - y1, x2 - x1);
-        const headLength = 30;
+  const x1 = annotation.x * scaleX;
+  const y1 = annotation.y * scaleY;
+  const x2 = (annotation.x2 ?? annotation.x + annotation.width) * scaleX;
+  const y2 = (annotation.y2 ?? annotation.y + annotation.height) * scaleY;
 
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const headLength = 30;
 
-        ctx.beginPath();
-        ctx.moveTo(x2, y2);
-        ctx.lineTo(
-          x2 - headLength * Math.cos(angle - Math.PI / 6),
-          y2 - headLength * Math.sin(angle - Math.PI / 6)
-        );
-        ctx.lineTo(
-          x2 - headLength * Math.cos(angle + Math.PI / 6),
-          y2 - headLength * Math.sin(angle + Math.PI / 6)
-        );
-        ctx.closePath();
-        ctx.fill();
-      }
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(
+    x2 - headLength * Math.cos(angle - Math.PI / 6),
+    y2 - headLength * Math.sin(angle - Math.PI / 6)
+  );
+  ctx.lineTo(
+    x2 - headLength * Math.cos(angle + Math.PI / 6),
+    y2 - headLength * Math.sin(angle + Math.PI / 6)
+  );
+  ctx.closePath();
+  ctx.fill();
+}
 
       if (annotation.tool === "text") {
         const text = annotation.text ?? "텍스트";
@@ -790,6 +804,24 @@ export default function GuideImageUploader({
             {annotations.map((annotation) => {
               const selected = selectedId === annotation.id;
 
+              const isArrow = annotation.tool === "arrow";
+
+const left = isArrow
+  ? Math.min(annotation.x, annotation.x2 ?? annotation.x)
+  : annotation.x;
+
+const top = isArrow
+  ? Math.min(annotation.y, annotation.y2 ?? annotation.y)
+  : annotation.y;
+
+const width = isArrow
+  ? Math.max(Math.abs((annotation.x2 ?? annotation.x) - annotation.x), 1)
+  : annotation.width;
+
+const height = isArrow
+  ? Math.max(Math.abs((annotation.y2 ?? annotation.y) - annotation.y), 1)
+  : annotation.height;
+
               return (
                 <div
                   key={annotation.id}
@@ -800,11 +832,11 @@ export default function GuideImageUploader({
                     selected ? "ring-2 ring-violet-400" : ""
                   }`}
                   style={{
-                    left: annotation.x,
-                    top: annotation.y,
-                    width: annotation.width,
-                    height: annotation.height,
-                  }}
+  left,
+  top,
+  width,
+  height,
+}}
                 >
                   {annotation.tool === "rect" && (
                     <div className="h-full w-full border-4 border-red-500" />
@@ -815,38 +847,31 @@ export default function GuideImageUploader({
                   )}
 
                   {annotation.tool === "arrow" && (
-                    <svg
-                      className="h-full w-full overflow-visible"
-                      viewBox={`0 0 ${Math.max(annotation.width, 1)} ${Math.max(
-                        annotation.height,
-                        1
-                      )}`}
-                      preserveAspectRatio="none"
-                    >
-                      <defs>
-                        <marker
-                          id={`arrowhead-${annotation.id}`}
-                          markerWidth="10"
-                          markerHeight="10"
-                          refX="8"
-                          refY="3"
-                          orient="auto"
-                        >
-                          <path d="M0,0 L0,6 L9,3 z" fill="#ef4444" />
-                        </marker>
-                      </defs>
+  <svg className="h-full w-full overflow-visible">
+    <defs>
+      <marker
+        id={`arrowhead-${annotation.id}`}
+        markerWidth="10"
+        markerHeight="10"
+        refX="8"
+        refY="3"
+        orient="auto"
+      >
+        <path d="M0,0 L0,6 L9,3 z" fill="#ef4444" />
+      </marker>
+    </defs>
 
-                      <line
-                        x1="0"
-                        y1="0"
-                        x2={Math.max(annotation.width, 1)}
-                        y2={Math.max(annotation.height, 1)}
-                        stroke="#ef4444"
-                        strokeWidth="5"
-                        markerEnd={`url(#arrowhead-${annotation.id})`}
-                      />
-                    </svg>
-                  )}
+    <line
+      x1={annotation.x <= (annotation.x2 ?? annotation.x) ? 0 : width}
+      y1={annotation.y <= (annotation.y2 ?? annotation.y) ? 0 : height}
+      x2={annotation.x <= (annotation.x2 ?? annotation.x) ? width : 0}
+      y2={annotation.y <= (annotation.y2 ?? annotation.y) ? height : 0}
+      stroke="#ef4444"
+      strokeWidth="5"
+      markerEnd={`url(#arrowhead-${annotation.id})`}
+    />
+  </svg>
+)}
 
                   {annotation.tool === "text" && (
                     <div className="flex h-full w-full items-center rounded border-2 border-red-500 bg-black/75 px-3 py-1 text-lg font-black text-white">
