@@ -17,14 +17,10 @@ const raidOptions = [
   "에키드나",
   "베히모스",
   "카제로스",
+  "지평의 성당",
 ];
 
-const difficultyOptions = [
-  "노말",
-  "하드",
-  "헬",
-  "싱글",
-];
+const difficultyOptions = ["노말", "하드", "헬", "싱글"];
 
 export default function NewRaidPage() {
   const router = useRouter();
@@ -34,6 +30,7 @@ export default function NewRaidPage() {
   const [difficulty, setDifficulty] = useState(difficultyOptions[0]);
   const [raidDate, setRaidDate] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(8);
+  const [minItemLevel, setMinItemLevel] = useState(1640);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -53,6 +50,7 @@ export default function NewRaidPage() {
         difficulty,
         raid_date: raidDate || null,
         max_players: maxPlayers,
+        min_item_level: minItemLevel,
         description,
       })
       .select("id")
@@ -72,14 +70,14 @@ export default function NewRaidPage() {
     <PageContainer>
       <SectionTitle
         title="레이드 모집 작성"
-        description="길드 레이드 모집을 등록합니다."
+        description="입장 레벨을 설정하면 신청 가능한 캐릭터만 표시됩니다."
       />
 
       <div className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="예: 토요일 에키드나 하드 8인"
+          placeholder="예: 토요일 지평의 성당 8인"
           className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
         />
 
@@ -112,14 +110,26 @@ export default function NewRaidPage() {
           className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
         />
 
-        <input
-          type="number"
-          value={maxPlayers}
-          onChange={(e) => setMaxPlayers(Number(e.target.value))}
-          min={1}
-          max={16}
-          className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
-        />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <input
+            type="number"
+            value={maxPlayers}
+            onChange={(e) => setMaxPlayers(Number(e.target.value))}
+            min={1}
+            max={16}
+            placeholder="최대 인원"
+            className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+          />
+
+          <input
+            type="number"
+            value={minItemLevel}
+            onChange={(e) => setMinItemLevel(Number(e.target.value))}
+            min={0}
+            placeholder="최소 입장 아이템 레벨"
+            className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+          />
+        </div>
 
         <textarea
           value={description}

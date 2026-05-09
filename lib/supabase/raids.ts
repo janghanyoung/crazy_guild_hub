@@ -10,6 +10,7 @@ export type Raid = {
   description: string | null;
   status: string;
   created_at: string;
+  min_item_level: number | null;
 };
 
 export type RaidParticipant = {

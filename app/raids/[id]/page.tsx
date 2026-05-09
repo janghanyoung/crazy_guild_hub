@@ -64,6 +64,9 @@ export default async function RaidDetailPage({
                 {raid.description || "설명 없음"}
               </p>
             </div>
+            <span className="rounded-full border border-orange-500/40 px-3 py-1 text-xs text-orange-300">  
+            입장 Lv. {raid.min_item_level ?? 0}  
+            </span>
           </section>
 
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
