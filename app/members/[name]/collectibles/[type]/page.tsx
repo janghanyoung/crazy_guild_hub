@@ -263,12 +263,14 @@ export default async function CollectibleDetailPage({
                       {rowPercent}%
                     </p>
 
-                    <Link
-                      href={`/guides?keyword=${encodeURIComponent(rowName)}`}
-                      className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-300 transition hover:bg-violet-500/10"
+                    <Link  
+                    href={`/guides/new?category=collectible&targetType=${encodeURIComponent(
+                        collectibleType
+                    )}&targetName=${encodeURIComponent(rowName)}`}
+                    className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-300 transition hover:bg-violet-500/10"
                     >
-                      공략 보기
-                    </Link>
+                     공략 작성/보기
+                     </Link>
                   </div>
                 </div>
 
