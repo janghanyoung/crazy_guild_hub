@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PageContainer from "../../../../../components/ui/PageContainer";
 import CollectibleSummary from "../../../../../components/character/CollectibleSummary";
+import { getGuidesByTarget } from "../../../../../lib/supabase/guides";
 
 type CollectiblePoint = {
   PointName?: string;
@@ -24,7 +25,7 @@ type Collectible = {
   collectiblePoints?: CollectiblePoint[];
 };
 
-export const revalidate = 1800;
+export const dynamic = "force-dynamic";
 
 function getVal<T>(
   obj: Record<string, unknown>,
@@ -32,6 +33,11 @@ function getVal<T>(
   lower: string
 ): T | undefined {
   return (obj[upper] ?? obj[lower]) as T | undefined;
+}
+
+function normalizeMaxPoint(value: unknown) {
+  const n = Number(value ?? 1);
+  return n > 0 ? n : 1;
 }
 
 async function getCollectibles(characterName: string): Promise<Collectible[]> {
@@ -48,7 +54,7 @@ async function getCollectibles(characterName: string): Promise<Collectible[]> {
         accept: "application/json",
         authorization: `bearer ${apiKey}`,
       },
-      next: { revalidate: 1800 },
+      cache: "no-store",
     }
   );
 
@@ -112,12 +118,21 @@ export default async function CollectibleDetailPage({
       getVal<number>(rowRecord, "Point", "point") ?? 0
     );
 
-    const rowMaxPoint = Number(
-      getVal<number>(rowRecord, "MaxPoint", "maxPoint") ?? 1
-    );
+    const rawMaxPoint = getVal<number>(rowRecord, "MaxPoint", "maxPoint");
+
+    const rowMaxPoint = normalizeMaxPoint(rawMaxPoint);
 
     return rowPoint < rowMaxPoint;
   });
+
+  const guides = await getGuidesByTarget({
+    category: "collectible",
+    targetType: collectibleType,
+  });
+
+  const guideMap = new Map(
+    guides.map((guide) => [guide.target_name, guide])
+  );
 
   const percent = maxPoint > 0 ? Math.round((point / maxPoint) * 100) : 0;
   const remain = Math.max(maxPoint - point, 0);
@@ -236,14 +251,20 @@ export default async function CollectibleDetailPage({
               getVal<number>(rowRecord, "Point", "point") ?? 0
             );
 
-            const rowMaxPoint = Number(
-              getVal<number>(rowRecord, "MaxPoint", "maxPoint") ?? 1
+            const rawMaxPoint = getVal<number>(
+              rowRecord,
+              "MaxPoint",
+              "maxPoint"
             );
+
+            const rowMaxPoint = normalizeMaxPoint(rawMaxPoint);
 
             const rowPercent =
               rowMaxPoint > 0
                 ? Math.round((rowPoint / rowMaxPoint) * 100)
                 : 0;
+
+            const guide = guideMap.get(rowName);
 
             return (
               <article
@@ -263,14 +284,23 @@ export default async function CollectibleDetailPage({
                       {rowPercent}%
                     </p>
 
-                    <Link
-                      href={`/guides/new?category=collectible&targetType=${encodeURIComponent(
-                        collectibleType
-                      )}&targetName=${encodeURIComponent(rowName)}`}
-                      className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-300 transition hover:bg-violet-500/10"
-                    >
-                      공략 작성/보기
-                    </Link>
+                    {guide ? (
+                      <Link
+                        href={`/guides/${guide.id}`}
+                        className="rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500/10"
+                      >
+                        공략 보기
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/guides/new?category=collectible&targetType=${encodeURIComponent(
+                          collectibleType
+                        )}&targetName=${encodeURIComponent(rowName)}`}
+                        className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-300 transition hover:bg-violet-500/10"
+                      >
+                        공략 작성
+                      </Link>
+                    )}
                   </div>
                 </div>
 
