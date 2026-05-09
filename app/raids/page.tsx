@@ -1,79 +1,70 @@
 import Link from "next/link";
 import PageContainer from "../../components/ui/PageContainer";
 import SectionTitle from "../../components/ui/SectionTitle";
-import { getRaids } from "../../lib/supabase/raids";
+import { getRaidMasters } from "../../lib/supabase/raidMaster";
 
 export const dynamic = "force-dynamic";
 
-function formatDate(value: string | null) {
-  if (!value) return "일정 미정";
-
-  return new Intl.DateTimeFormat("ko-KR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Seoul",
-  }).format(new Date(value));
-}
-
 export default async function RaidsPage() {
-  const raids = await getRaids();
+  const raids = await getRaidMasters();
 
   return (
     <PageContainer>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <SectionTitle
-          title="레이드 허브"
-          description="길드 레이드 모집과 공략을 관리합니다."
-        />
+      <SectionTitle
+        title="레이드 허브"
+        description="레이드 공략과 모집글을 확인할 수 있습니다."
+      />
 
-        <Link
-          href="/raids/new"
-          className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-violet-500"
-        >
-          레이드 모집 작성
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {raids.map((raid) => (
           <Link
             key={raid.id}
-            href={`/raids/${raid.id}`}
-            className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 transition hover:-translate-y-1 hover:border-violet-500/50"
+            href={`/raids/${raid.slug}`}
+            className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 transition hover:-translate-y-1 hover:border-violet-500/50"
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-violet-500/40 px-3 py-1 text-xs font-bold text-violet-300">
-                {raid.raid_name}
-              </span>
-
-              {raid.difficulty && (
-                <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
-                  {raid.difficulty}
-                </span>
+            <div className="relative h-44 overflow-hidden bg-zinc-950">
+              {raid.image_url ? (
+                <img
+                  src={raid.image_url}
+                  alt={raid.name}
+                  className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-zinc-600">
+                  RAID
+                </div>
               )}
 
-              <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
-                {raid.status === "recruiting" ? "모집중" : "마감"}
-              </span>
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+
+              <div className="absolute bottom-4 left-4">
+                <p className="text-2xl font-black text-white">
+                  {raid.name}
+                </p>
+              </div>
             </div>
 
-            <h2 className="mt-4 text-2xl font-black text-white">
-              {raid.title}
-            </h2>
+            <div className="space-y-3 p-5">
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-orange-500/40 px-3 py-1 text-xs font-bold text-orange-300">
+                  입장 Lv. {raid.min_item_level ?? 0}
+                </span>
 
-            <p className="mt-3 text-sm text-zinc-400">
-              {formatDate(raid.raid_date)}
-            </p>
+                <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
+                  최대 {raid.max_players ?? 8}인
+                </span>
+              </div>
 
-            <p className="mt-4 line-clamp-2 text-sm text-zinc-500">
-              {raid.description || "설명 없음"}
-            </p>
+              <p className="line-clamp-2 text-sm leading-6 text-zinc-400">
+                {raid.description || "설명 없음"}
+              </p>
+            </div>
           </Link>
         ))}
 
         {raids.length === 0 && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-10 text-center text-zinc-500 xl:col-span-2">
-            아직 등록된 레이드 모집이 없습니다.
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-10 text-center text-zinc-500 md:col-span-2 xl:col-span-3">
+            등록된 레이드가 없습니다.
           </div>
         )}
       </div>
