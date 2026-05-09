@@ -24,7 +24,9 @@ async function getProfile(characterName: string) {
         accept: "application/json",
         authorization: `bearer ${apiKey}`,
       },
-      cache: "no-store",
+      next: {
+        revalidate: 1800,
+    }
     }
   );
 

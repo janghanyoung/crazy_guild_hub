@@ -29,8 +29,12 @@ type CharacterDetail = LostArkSibling & {
   arkGridText?: string;
 };
 
+export const revalidate = 1800;
+
 async function lostarkFetch<T>(path: string): Promise<T | null> {
   const apiKey = process.env.LOA_API_KEY;
+
+  if (!apiKey) return null;
 
   const response = await fetch(
     `https://developer-lostark.game.onstove.com${path}`,
@@ -39,7 +43,10 @@ async function lostarkFetch<T>(path: string): Promise<T | null> {
         accept: "application/json",
         authorization: `bearer ${apiKey}`,
       },
-      cache: "no-store",
+      next: {
+        revalidate: 1800,
+        tags: [`lostark:${path}`],
+      },
     }
   );
 
