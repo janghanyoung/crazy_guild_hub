@@ -1,0 +1,23 @@
+name: Inject Env
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  env:
+    runs-on: ubuntu-latest
+
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create env file
+        run: |
+          echo "LOA_API_KEY=${{ secrets.LOA_API_KEY }}" >> .env.local
+
+      - name: Show env exists
+        run: cat .env.local
