@@ -1,6 +1,7 @@
 import Image from "next/image";
 import PageContainer from "../../components/ui/PageContainer";
 import SectionTitle from "../../components/ui/SectionTitle";
+import Link from "next/link";
 
 const guildMembers = [
   "파이썬을쓰는자",
@@ -46,7 +47,7 @@ export default async function MembersPage() {
     <PageContainer>
       <SectionTitle
         title="길드원"
-        description="로스트아크 API로 대표 캐릭터 정보를 불러옵니다."
+        description="오늘도 즐거운 로아생활 되세요."
       />
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -68,10 +69,11 @@ export default async function MembersPage() {
           }
 
           return (
-            <article
-              key={profile.CharacterName}
-              className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60"
-            >
+             <Link
+             key={profile.CharacterName}
+             href={`/members/${encodeURIComponent(profile.CharacterName ?? fallbackName)}`}
+             className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 transition hover:-translate-y-1 hover:border-violet-500/60"
+             >
               <div className="relative h-80 bg-zinc-950">
                 {profile.CharacterImage ? (
                   <Image
@@ -113,7 +115,7 @@ export default async function MembersPage() {
                   </div>
                 </div>
               </div>
-            </article>
+            </Link>
           );
         })}
       </div>
