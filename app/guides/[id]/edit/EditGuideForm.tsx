@@ -6,6 +6,7 @@ import PageContainer from "../../../../components/ui/PageContainer";
 import SectionTitle from "../../../../components/ui/SectionTitle";
 import { supabase } from "../../../../lib/supabase/client";
 import type { Guide } from "../../../../lib/supabase/guides";
+import GuideImageUploader from "../../../../components/guides/GuideImageUploader";
 
 export default function EditGuideForm({ guide }: { guide: Guide }) {
   const router = useRouter();
@@ -105,6 +106,10 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
             미리보기
           </button>
         </div>
+
+        <GuideImageUploader  
+        onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)}
+        />
 
         {preview ? (
           <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7">

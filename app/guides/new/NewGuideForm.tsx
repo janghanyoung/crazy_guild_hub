@@ -1,33 +1,141 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import PageContainer from "../../../components/ui/PageContainer";
 import SectionTitle from "../../../components/ui/SectionTitle";
 import { supabase } from "../../../lib/supabase/client";
+import GuideImageUploader from "../../../components/guides/GuideImageUploader";
+
+const guideTargets = {
+  raid: {
+    "레이드": [
+      "발탄",
+      "비아키스",
+      "쿠크세이튼",
+      "아브렐슈드",
+      "일리아칸",
+      "상아탑",
+      "카멘",
+      "에키드나",
+      "베히모스",
+      "카제로스",
+    ],
+  },
+  collectible: {
+    "모코코 씨앗": [],
+    "섬의 마음": [],
+    "이그네아의 징표": [],
+    "거인의 심장": [],
+    "위대한 미술품": [],
+    "항해 모험물": [],
+    "세계수의 잎": [],
+    "오르페우스의 별": [],
+    "기억의 오르골": [],
+    "크림스네일의 해도": [],
+    "누크만의 환영석": [],
+  },
+  achievement: {
+    "업적": ["히든 업적", "전투 업적", "생활 업적", "항해 업적", "일반 업적"],
+  },
+  general: {
+    "일반": ["자유 공략", "길드 팁", "초보자 가이드"],
+  },
+} as const;
+
+type Category = keyof typeof guideTargets;
+
+function getCategoryLabel(category: string) {
+  switch (category) {
+    case "raid":
+      return "레이드 공략";
+    case "collectible":
+      return "내실 공략";
+    case "achievement":
+      return "업적 공략";
+    default:
+      return "일반 공략";
+  }
+}
 
 export default function NewGuideForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const defaultCategory = searchParams.get("category") ?? "general";
+  const defaultCategory = (searchParams.get("category") ?? "general") as Category;
   const defaultTargetType = searchParams.get("targetType") ?? "";
   const defaultTargetName = searchParams.get("targetName") ?? "";
 
-  const [title, setTitle] = useState(
-    defaultTargetName ? `${defaultTargetName} 공략` : ""
+  const safeDefaultCategory: Category =
+    defaultCategory in guideTargets ? defaultCategory : "general";
+
+  const [category, setCategory] = useState<Category>(safeDefaultCategory);
+
+  const targetTypes = useMemo(
+    () => Object.keys(guideTargets[category]),
+    [category]
   );
-  const [category, setCategory] = useState(defaultCategory);
-  const [targetType, setTargetType] = useState(defaultTargetType);
-  const [targetName, setTargetName] = useState(defaultTargetName);
+
+  const initialTargetType =
+    defaultTargetType && targetTypes.includes(defaultTargetType)
+      ? defaultTargetType
+      : targetTypes[0] ?? "";
+
+  const [targetType, setTargetType] = useState(initialTargetType);
+
+  const targetNames = useMemo(() => {
+    const group = guideTargets[category] as Record<string, readonly string[]>;
+    return [...(group[targetType] ?? [])];
+  }, [category, targetType]);
+
+  const initialTargetName =
+    defaultTargetName && (targetNames.length === 0 || targetNames.includes(defaultTargetName))
+      ? defaultTargetName
+      : targetNames[0] ?? "";
+
+  const [targetName, setTargetName] = useState(initialTargetName);
+  const [title, setTitle] = useState(
+    initialTargetName ? `${initialTargetName} 공략` : `${initialTargetType} 공략`
+  );
   const [videoUrl, setVideoUrl] = useState("");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
 
+  function handleCategoryChange(nextCategory: Category) {
+    const nextTargetTypes = Object.keys(guideTargets[nextCategory]);
+    const nextTargetType = nextTargetTypes[0] ?? "";
+    const nextTargetNames = (guideTargets[nextCategory] as Record<string, readonly string[]>)[nextTargetType] ?? [];
+    const nextTargetName = nextTargetNames[0] ?? "";
+
+    setCategory(nextCategory);
+    setTargetType(nextTargetType);
+    setTargetName(nextTargetName);
+    setTitle(nextTargetName ? `${nextTargetName} 공략` : `${nextTargetType} 공략`);
+  }
+
+  function handleTargetTypeChange(nextTargetType: string) {
+    const nextTargetNames = (guideTargets[category] as Record<string, readonly string[]>)[nextTargetType] ?? [];
+    const nextTargetName = nextTargetNames[0] ?? "";
+
+    setTargetType(nextTargetType);
+    setTargetName(nextTargetName);
+    setTitle(nextTargetName ? `${nextTargetName} 공략` : `${nextTargetType} 공략`);
+  }
+
+  function handleTargetNameChange(nextTargetName: string) {
+    setTargetName(nextTargetName);
+    setTitle(nextTargetName ? `${nextTargetName} 공략` : `${targetType} 공략`);
+  }
+
   async function handleSubmit() {
     if (!title.trim()) {
       alert("제목을 입력하세요.");
+      return;
+    }
+
+    if (!targetType.trim()) {
+      alert("대상 종류를 선택하세요.");
       return;
     }
 
@@ -38,8 +146,8 @@ export default function NewGuideForm() {
       .insert({
         title,
         category,
-        target_type: targetType || null,
-        target_name: targetName || null,
+        target_type: targetType,
+        target_name: targetName || targetType,
         video_url: videoUrl || null,
         content,
       })
@@ -58,48 +166,85 @@ export default function NewGuideForm() {
 
   return (
     <PageContainer>
-      <SectionTitle title="공략 작성" description="공략을 작성하고 필요한 페이지에 연결합니다." />
+      <SectionTitle
+        title="공략 작성"
+        description="정해진 분류와 대상에 맞춰 공략을 작성합니다."
+      />
 
       <div className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4"
-        >
-          <option value="raid">레이드 공략</option>
-          <option value="collectible">내실 공략</option>
-          <option value="achievement">업적 공략</option>
-          <option value="general">일반 공략</option>
-        </select>
-
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="공략 제목"
-          className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4"
-        />
+        <div>
+          <label className="text-sm font-bold text-zinc-300">분류</label>
+          <select
+            value={category}
+            onChange={(e) => handleCategoryChange(e.target.value as Category)}
+            className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+          >
+            {(Object.keys(guideTargets) as Category[]).map((key) => (
+              <option key={key} value={key}>
+                {getCategoryLabel(key)}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label className="text-sm font-bold text-zinc-300">대상 종류</label>
+            <select
+              value={targetType}
+              onChange={(e) => handleTargetTypeChange(e.target.value)}
+              className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+            >
+              {targetTypes.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-bold text-zinc-300">대상 이름</label>
+
+            {targetNames.length > 0 ? (
+              <select
+                value={targetName}
+                onChange={(e) => handleTargetNameChange(e.target.value)}
+                className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+              >
+                {targetNames.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="mt-2 h-12 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-500">
+                상세 대상은 연결 페이지에서 자동 지정됩니다.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm font-bold text-zinc-300">제목</label>
           <input
-            value={targetType}
-            onChange={(e) => setTargetType(e.target.value)}
-            placeholder="대상 종류"
-            className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4"
-          />
-          <input
-            value={targetName}
-            onChange={(e) => setTargetName(e.target.value)}
-            placeholder="대상 이름"
-            className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="공략 제목"
+            className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
           />
         </div>
 
-        <input
-          value={videoUrl}
-          onChange={(e) => setVideoUrl(e.target.value)}
-          placeholder="영상 URL"
-          className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4"
-        />
+        <div>
+          <label className="text-sm font-bold text-zinc-300">영상 URL</label>
+          <input
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="유튜브 링크 등"
+            className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+          />
+        </div>
 
         <div className="flex gap-2">
           <button
@@ -110,6 +255,7 @@ export default function NewGuideForm() {
           >
             작성
           </button>
+
           <button
             onClick={() => setPreview(true)}
             className={`rounded-lg px-4 py-2 text-sm font-bold ${
@@ -119,6 +265,10 @@ export default function NewGuideForm() {
             미리보기
           </button>
         </div>
+          <GuideImageUploader
+          onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)}
+          />
+
 
         {preview ? (
           <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7">
@@ -128,16 +278,15 @@ export default function NewGuideForm() {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={`예시:
-# 핵심 요약
+            placeholder={`# 핵심 요약
 - 준비물:
 - 위치:
 - 주의사항:
 
-# 상세 공략
+## 상세 공략
 내용을 적으세요.`}
             rows={18}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7 outline-none focus:border-violet-500"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7 text-white outline-none focus:border-violet-500"
           />
         )}
 
