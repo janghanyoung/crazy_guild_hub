@@ -118,7 +118,7 @@ export default async function CharacterDetailPage({
       </section>
 
       <EquipmentGrid equipments={equipment ?? []} />
-      <GemGrid gems={gems?.Gems ?? []} />
+      <GemGrid gems={gems?.Gems ?? gems ?? []} />
       <ArmoryEffects profile={profile} />
     </PageContainer>
   );
