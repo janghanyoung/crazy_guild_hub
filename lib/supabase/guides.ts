@@ -1,4 +1,3 @@
-
 import { supabase } from "./client";
 
 export type Guide = {
@@ -42,21 +41,15 @@ export async function getGuide(id: string) {
   return data as Guide;
 }
 
-export async function getGuidesByTarget(params: {
-  category?: string;
-  targetType?: string;
-  targetName?: string;
-}) {
-  let query = supabase.from("guides").select("*");
-
-  if (params.category) query = query.eq("category", params.category);
-  if (params.targetType) query = query.eq("target_type", params.targetType);
-  if (params.targetName) query = query.eq("target_name", params.targetName);
-
-  const { data, error } = await query.order("created_at", { ascending: false });
+export async function getGuidesByCategory(category: Guide["category"]) {
+  const { data, error } = await supabase
+    .from("guides")
+    .select("*")
+    .eq("category", category)
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("getGuidesByTarget error:", error.message);
+    console.error("getGuidesByCategory error:", error.message);
     return [];
   }
 

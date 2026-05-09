@@ -1,7 +1,11 @@
 import Link from "next/link";
 import PageContainer from "../../../../../components/ui/PageContainer";
 import CollectibleSummary from "../../../../../components/character/CollectibleSummary";
-import { getGuidesByTarget } from "../../../../../lib/supabase/guides";
+import { getGuidesByCategory } from "../../../../../lib/supabase/guides";
+import {
+  normalizeGuideTargetName,
+  normalizeGuideTargetType,
+} from "../../../../../lib/guides/normalize";
 
 type CollectiblePoint = {
   PointName?: string;
@@ -119,19 +123,24 @@ export default async function CollectibleDetailPage({
     );
 
     const rawMaxPoint = getVal<number>(rowRecord, "MaxPoint", "maxPoint");
-
     const rowMaxPoint = normalizeMaxPoint(rawMaxPoint);
 
     return rowPoint < rowMaxPoint;
   });
 
-  const guides = await getGuidesByTarget({
-    category: "collectible",
-    targetType: collectibleType,
-  });
+  const allCollectibleGuides = await getGuidesByCategory("collectible");
+
+  const relatedGuides = allCollectibleGuides.filter(
+    (guide) =>
+      normalizeGuideTargetType(guide.target_type) ===
+      normalizeGuideTargetType(collectibleType)
+  );
 
   const guideMap = new Map(
-    guides.map((guide) => [guide.target_name, guide])
+    relatedGuides.map((guide) => [
+      normalizeGuideTargetName(guide.target_name, collectibleType),
+      guide,
+    ])
   );
 
   const percent = maxPoint > 0 ? Math.round((point / maxPoint) * 100) : 0;
@@ -264,7 +273,8 @@ export default async function CollectibleDetailPage({
                 ? Math.round((rowPoint / rowMaxPoint) * 100)
                 : 0;
 
-            const guide = guideMap.get(rowName);
+            const guideKey = normalizeGuideTargetName(rowName, collectibleType);
+            const guide = guideMap.get(guideKey);
 
             return (
               <article
@@ -300,11 +310,6 @@ export default async function CollectibleDetailPage({
                       >
                         공략 작성
                       </Link>
-
-                      
-
-
-
                     )}
                   </div>
                 </div>
