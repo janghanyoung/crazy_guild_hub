@@ -13,7 +13,8 @@ export async function POST(request: Request) {
       { message: "대표 캐릭터명, 현재 PIN, 새 PIN을 모두 입력해주세요." },
       { status: 400 }
     );
-  }
+  }  
+
 
   if (newPin.length < 4) {
     return NextResponse.json(
