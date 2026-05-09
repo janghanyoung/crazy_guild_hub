@@ -56,15 +56,19 @@ export default async function RaidHubDetailPage({
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
 
           <div className="absolute bottom-8 left-8">
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full border border-orange-500/40 bg-black/40 px-3 py-1 text-xs font-bold text-orange-300 backdrop-blur">
-                입장 Lv. {raid.min_item_level ?? 0}
-              </span>
-
-              <span className="rounded-full border border-zinc-700 bg-black/40 px-3 py-1 text-xs text-zinc-300 backdrop-blur">
-                최대 {raid.max_players ?? 8}인
-              </span>
-            </div>
+  <div className="flex flex-wrap gap-2">
+    {raid.difficulties
+      ?.sort((a, b) => a.sort_order - b.sort_order)
+      .map((difficulty) => (
+        <span
+          key={difficulty.id}
+          className="rounded-full border border-orange-500/40 bg-black/40 px-3 py-1 text-xs font-bold text-orange-300 backdrop-blur"
+        >
+          {difficulty.difficulty} Lv.{" "}
+          {difficulty.min_item_level}
+        </span>
+      ))}
+  </div>
 
             <h1 className="mt-4 text-5xl font-black text-white">
               {raid.name}
