@@ -107,9 +107,11 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
           </button>
         </div>
 
-        <GuideImageUploader  
-        onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)}
-        />
+        <GuideImageUploader
+  content={content}
+  onReplaceContent={setContent}
+  onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)}
+/>
 
         {preview ? (
           <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7">

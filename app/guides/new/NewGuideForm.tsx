@@ -265,8 +265,10 @@ export default function NewGuideForm() {
             미리보기
           </button>
         </div>
-          <GuideImageUploader
-          onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)}
+          <GuideImageUploader  
+          content={content}  
+          onReplaceContent={setContent}  
+          onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)} 
           />
 
 

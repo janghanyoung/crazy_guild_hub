@@ -11,7 +11,7 @@ type Area = {
   y: number;
 };
 
-type Tool = "arrow" | "rect" | "circle" | "text";
+type Tool = "arrow" | "rect" | "circle" | "text" | "image";
 
 type Annotation = {
   id: string;
@@ -21,15 +21,41 @@ type Annotation = {
   width: number;
   height: number;
   text?: string;
+  imageSrc?: string;
 };
 
 type Props = {
   onUploaded: (markdown: string) => void;
+  content?: string;
+  onReplaceContent?: (nextContent: string) => void;
 };
 
-export default function GuideImageUploader({ onUploaded }: Props) {
+function extractMarkdownImages(content: string) {
+  const regex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  const images: { alt: string; url: string; markdown: string }[] = [];
+
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    images.push({
+      alt: match[1],
+      url: match[2],
+      markdown: match[0],
+    });
+  }
+
+  return images;
+}
+
+export default function GuideImageUploader({
+  onUploaded,
+  content = "",
+  onReplaceContent,
+}: Props) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [editingMarkdown, setEditingMarkdown] = useState<string | null>(null);
+
   const [croppedSrc, setCroppedSrc] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -44,6 +70,12 @@ export default function GuideImageUploader({ onUploaded }: Props) {
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
+  const overlayFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const markdownImages = useMemo(
+    () => extractMarkdownImages(content),
+    [content]
+  );
 
   const hasImage = useMemo(() => !!imageSrc, [imageSrc]);
 
@@ -53,6 +85,18 @@ export default function GuideImageUploader({ onUploaded }: Props) {
     },
     []
   );
+
+  function resetImageState() {
+    setImageSrc(null);
+    setOriginalFile(null);
+    setEditingMarkdown(null);
+    setCroppedSrc(null);
+    setEditMode(false);
+    setAnnotations([]);
+    setDraft(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+  }
 
   async function uploadBlob(blob: Blob, fileNameExt = "webp") {
     const fileName = `${crypto.randomUUID()}.${fileNameExt}`;
@@ -73,7 +117,13 @@ export default function GuideImageUploader({ onUploaded }: Props) {
       .from("guide-images")
       .getPublicUrl(filePath);
 
-    onUploaded(`\n\n![공략 이미지](${data.publicUrl})\n\n`);
+    const markdown = `![공략 이미지](${data.publicUrl})`;
+
+    if (editingMarkdown && onReplaceContent) {
+      onReplaceContent(content.replace(editingMarkdown, markdown));
+    } else {
+      onUploaded(`\n\n${markdown}\n\n`);
+    }
 
     resetImageState();
   }
@@ -89,25 +139,16 @@ export default function GuideImageUploader({ onUploaded }: Props) {
     }
   }
 
-  function resetImageState() {
-    setImageSrc(null);
-    setOriginalFile(null);
-    setCroppedSrc(null);
-    setEditMode(false);
-    setAnnotations([]);
-    setDraft(null);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-  }
-
   async function createCroppedDataUrl() {
     if (!imageSrc || !croppedAreaPixels) return null;
 
     const image = new Image();
+    image.crossOrigin = "anonymous";
     image.src = imageSrc;
 
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
       image.onload = resolve;
+      image.onerror = reject;
     });
 
     const canvas = document.createElement("canvas");
@@ -134,14 +175,18 @@ export default function GuideImageUploader({ onUploaded }: Props) {
   }
 
   async function handleCropNext() {
-    const dataUrl = await createCroppedDataUrl();
+    try {
+      const dataUrl = await createCroppedDataUrl();
 
-    if (!dataUrl) {
-      alert("이미지 크롭 실패");
-      return;
+      if (!dataUrl) {
+        alert("이미지 크롭 실패");
+        return;
+      }
+
+      setCroppedSrc(dataUrl);
+    } catch {
+      alert("이미지를 편집할 수 없습니다. 이미지 주소 또는 CORS 문제일 수 있습니다.");
     }
-
-    setCroppedSrc(dataUrl);
   }
 
   function getRelativePoint(event: React.PointerEvent<HTMLDivElement>) {
@@ -166,8 +211,8 @@ export default function GuideImageUploader({ onUploaded }: Props) {
       tool,
       x: point.x,
       y: point.y,
-      width: 0,
-      height: 0,
+      width: tool === "text" ? 160 : 0,
+      height: tool === "text" ? 44 : 0,
       text: tool === "text" ? "텍스트" : undefined,
     });
   }
@@ -190,10 +235,12 @@ export default function GuideImageUploader({ onUploaded }: Props) {
   function handlePointerUp() {
     if (!draft) return;
 
-    if (draft.width < 10 && draft.height < 10 && draft.tool !== "text") {
-      setDraft(null);
-      startRef.current = null;
-      return;
+    if (draft.tool !== "text" && draft.tool !== "image") {
+      if (draft.width < 10 && draft.height < 10) {
+        setDraft(null);
+        startRef.current = null;
+        return;
+      }
     }
 
     const next =
@@ -221,14 +268,37 @@ export default function GuideImageUploader({ onUploaded }: Props) {
     setAnnotations([]);
   }
 
+  function handleOverlayImage(file: File) {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setAnnotations((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          tool: "image",
+          x: 40,
+          y: 40,
+          width: 220,
+          height: 130,
+          imageSrc: reader.result as string,
+        },
+      ]);
+    };
+
+    reader.readAsDataURL(file);
+  }
+
   async function renderFinalBlob() {
     if (!croppedSrc || !canvasRef.current) return null;
 
     const image = new Image();
+    image.crossOrigin = "anonymous";
     image.src = croppedSrc;
 
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
       image.onload = resolve;
+      image.onerror = reject;
     });
 
     const displayRect = canvasRef.current.getBoundingClientRect();
@@ -245,7 +315,7 @@ export default function GuideImageUploader({ onUploaded }: Props) {
 
     ctx.drawImage(image, 0, 0);
 
-    annotations.forEach((annotation) => {
+    for (const annotation of annotations) {
       const x = annotation.x * scaleX;
       const y = annotation.y * scaleY;
       const width = annotation.width * scaleX;
@@ -319,7 +389,18 @@ export default function GuideImageUploader({ onUploaded }: Props) {
         ctx.fillStyle = "#ffffff";
         ctx.fillText(text, x + padding, y + 37);
       }
-    });
+
+      if (annotation.tool === "image" && annotation.imageSrc) {
+        const overlay = new Image();
+        overlay.src = annotation.imageSrc;
+
+        await new Promise((resolve) => {
+          overlay.onload = resolve;
+        });
+
+        ctx.drawImage(overlay, x, y, width, height);
+      }
+    }
 
     return new Promise<Blob | null>((resolve) => {
       canvas.toBlob((blob) => resolve(blob), "image/webp", 0.95);
@@ -343,35 +424,75 @@ export default function GuideImageUploader({ onUploaded }: Props) {
     }
   }
 
+  function startEditingExistingImage(image: {
+    url: string;
+    markdown: string;
+  }) {
+    setImageSrc(image.url);
+    setOriginalFile(null);
+    setEditingMarkdown(image.markdown);
+    setEditMode(true);
+    setCroppedSrc(null);
+    setAnnotations([]);
+    setDraft(null);
+  }
+
   const allAnnotations = draft ? [...annotations, draft] : annotations;
 
   return (
     <div className="space-y-4">
-      <label className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-zinc-700 px-4 text-sm font-bold text-zinc-300 transition hover:border-violet-500/60 hover:text-white">
-        이미지 추가
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
+      <div className="flex flex-wrap gap-2">
+        <label className="inline-flex h-10 cursor-pointer items-center rounded-lg border border-zinc-700 px-4 text-sm font-bold text-zinc-300 transition hover:border-violet-500/60 hover:text-white">
+          새 이미지 추가
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
 
-            if (!file) return;
+              if (!file) return;
 
-            const reader = new FileReader();
+              const reader = new FileReader();
 
-            reader.onload = () => {
-              setOriginalFile(file);
-              setImageSrc(reader.result as string);
-              setCroppedSrc(null);
-              setEditMode(false);
-              setAnnotations([]);
-            };
+              reader.onload = () => {
+                setOriginalFile(file);
+                setImageSrc(reader.result as string);
+                setCroppedSrc(null);
+                setEditMode(false);
+                setEditingMarkdown(null);
+                setAnnotations([]);
+              };
 
-            reader.readAsDataURL(file);
-          }}
-        />
-      </label>
+              reader.readAsDataURL(file);
+            }}
+          />
+        </label>
+      </div>
+
+      {markdownImages.length > 0 && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+          <p className="mb-3 text-sm font-bold text-zinc-300">
+            본문 이미지 다시 편집
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            {markdownImages.map((image) => (
+              <button
+                key={image.url}
+                onClick={() => startEditingExistingImage(image)}
+                className="group overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 transition hover:border-violet-500/60"
+              >
+                <img
+                  src={image.url}
+                  alt={image.alt || "본문 이미지"}
+                  className="h-20 w-32 object-cover opacity-80 transition group-hover:opacity-100"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {hasImage && !editMode && (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
@@ -475,6 +596,24 @@ export default function GuideImageUploader({ onUploaded }: Props) {
             ))}
 
             <button
+              onClick={() => overlayFileInputRef.current?.click()}
+              className="rounded-lg bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300 hover:text-white"
+            >
+              이미지 덧대기
+            </button>
+
+            <input
+              ref={overlayFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) handleOverlayImage(file);
+              }}
+            />
+
+            <button
               onClick={removeLastAnnotation}
               className="rounded-lg border border-zinc-700 px-3 py-2 text-sm font-bold text-zinc-300 hover:border-yellow-500 hover:text-yellow-300"
             >
@@ -561,6 +700,15 @@ export default function GuideImageUploader({ onUploaded }: Props) {
                     {annotation.text ?? "텍스트"}
                   </div>
                 )}
+
+                {annotation.tool === "image" && annotation.imageSrc && (
+                  <img
+                    src={annotation.imageSrc}
+                    alt="덧댄 이미지"
+                    className="h-full w-full object-contain"
+                    draggable={false}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -571,7 +719,11 @@ export default function GuideImageUploader({ onUploaded }: Props) {
               disabled={uploading}
               className="rounded-xl bg-violet-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-violet-500 disabled:opacity-50"
             >
-              {uploading ? "업로드 중..." : "편집 이미지 삽입"}
+              {uploading
+                ? "업로드 중..."
+                : editingMarkdown
+                  ? "수정 이미지로 교체"
+                  : "편집 이미지 삽입"}
             </button>
 
             <button
