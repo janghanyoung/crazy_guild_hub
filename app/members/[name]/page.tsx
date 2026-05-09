@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import PageContainer from "../../../components/ui/PageContainer";
 
@@ -10,13 +11,29 @@ type LostArkSibling = {
   ItemMaxLevel: string;
 };
 
-async function getSiblings(characterName: string): Promise<LostArkSibling[]> {
+type LostArkProfile = {
+  CharacterImage?: string | null;
+  CharacterName?: string;
+  ServerName?: string;
+  CharacterClassName?: string;
+  CharacterLevel?: number;
+  ItemAvgLevel?: string;
+  ExpeditionLevel?: number;
+  CombatPower?: string;
+};
+
+type CharacterDetail = LostArkSibling & {
+  image?: string | null;
+  combatPower?: string | null;
+  expeditionLevel?: number | null;
+  arkGridText?: string;
+};
+
+async function lostarkFetch<T>(path: string): Promise<T | null> {
   const apiKey = process.env.LOA_API_KEY;
 
   const response = await fetch(
-    `https://developer-lostark.game.onstove.com/characters/${encodeURIComponent(
-      characterName
-    )}/siblings`,
+    `https://developer-lostark.game.onstove.com${path}`,
     {
       headers: {
         accept: "application/json",
@@ -26,24 +43,56 @@ async function getSiblings(characterName: string): Promise<LostArkSibling[]> {
     }
   );
 
-  if (!response.ok) return [];
-
+  if (!response.ok) return null;
   return response.json();
+}
+
+async function getSiblings(characterName: string): Promise<LostArkSibling[]> {
+  const data = await lostarkFetch<LostArkSibling[]>(
+    `/characters/${encodeURIComponent(characterName)}/siblings`
+  );
+
+  return data ?? [];
+}
+
+async function getProfile(characterName: string): Promise<LostArkProfile | null> {
+  return lostarkFetch<LostArkProfile>(
+    `/armories/characters/${encodeURIComponent(characterName)}/profiles`
+  );
+}
+
+async function getArkGrid(characterName: string) {
+  return lostarkFetch<unknown>(
+    `/armories/characters/${encodeURIComponent(characterName)}/arkgrid`
+  );
 }
 
 function parseItemLevel(value: string) {
   return Number(value.replaceAll(",", ""));
 }
 
-function groupByServer(characters: LostArkSibling[]) {
-  return characters.reduce<Record<string, LostArkSibling[]>>((acc, character) => {
-    if (!acc[character.ServerName]) {
-      acc[character.ServerName] = [];
-    }
-
+function groupByServer(characters: CharacterDetail[]) {
+  return characters.reduce<Record<string, CharacterDetail[]>>((acc, character) => {
+    if (!acc[character.ServerName]) acc[character.ServerName] = [];
     acc[character.ServerName].push(character);
     return acc;
   }, {});
+}
+
+function summarizeArkGrid(data: unknown) {
+  if (!data) return "아크그리드 정보 없음";
+
+  if (typeof data === "object") {
+    const text = JSON.stringify(data);
+
+    if (text.length > 80) {
+      return "아크그리드 정보 있음";
+    }
+
+    return text;
+  }
+
+  return String(data);
 }
 
 export default async function MemberDetailPage({
@@ -60,7 +109,24 @@ export default async function MemberDetailPage({
     (a, b) => parseItemLevel(b.ItemAvgLevel) - parseItemLevel(a.ItemAvgLevel)
   );
 
-  const groupedByServer = groupByServer(sortedSiblings);
+  const details = await Promise.all(
+    sortedSiblings.map(async (character) => {
+      const [profile, arkGrid] = await Promise.all([
+        getProfile(character.CharacterName),
+        getArkGrid(character.CharacterName),
+      ]);
+
+      return {
+        ...character,
+        image: profile?.CharacterImage ?? null,
+        combatPower: profile?.CombatPower ?? null,
+        expeditionLevel: profile?.ExpeditionLevel ?? null,
+        arkGridText: summarizeArkGrid(arkGrid),
+      };
+    })
+  );
+
+  const groupedByServer = groupByServer(details);
 
   return (
     <PageContainer>
@@ -72,7 +138,7 @@ export default async function MemberDetailPage({
         <p className="text-sm font-medium text-violet-300">원정대 캐릭터</p>
         <h1 className="mt-2 text-3xl font-black">{characterName}</h1>
         <p className="mt-2 text-zinc-400">
-          서버별로 정렬한 원정대 부캐 목록입니다.
+          부캐 프로필 이미지, 전투력, 아크그리드 정보를 함께 불러옵니다.
         </p>
       </div>
 
@@ -86,48 +152,84 @@ export default async function MemberDetailPage({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
               {characters.map((character) => {
                 const isMain = character.CharacterName === characterName;
 
                 return (
                   <article
                     key={character.CharacterName}
-                    className={`rounded-2xl border p-5 transition hover:-translate-y-1 ${
+                    className={`overflow-hidden rounded-2xl border transition hover:-translate-y-1 ${
                       isMain
                         ? "border-violet-500/70 bg-violet-950/30"
                         : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm text-zinc-500">
-                          {character.CharacterClassName}
-                        </p>
-                        <h3 className="mt-1 text-xl font-black text-white">
-                          {character.CharacterName}
-                        </h3>
-                      </div>
+                    <div className="relative h-72 bg-zinc-950">
+                      {character.image ? (
+                        <Image
+                          src={character.image}
+                          alt={character.CharacterName}
+                          fill
+                          unoptimized
+                          className="object-contain object-bottom"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-zinc-500">
+                          이미지 없음
+                        </div>
+                      )}
 
                       {isMain && (
-                        <span className="shrink-0 rounded-full bg-violet-500/20 px-3 py-1 text-xs font-bold text-violet-200">
+                        <span className="absolute right-4 top-4 rounded-full bg-violet-500/80 px-3 py-1 text-xs font-bold text-white">
                           대표
                         </span>
                       )}
                     </div>
 
-                    <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-xl bg-zinc-950/80 p-3">
-                        <p className="text-zinc-500">전투 레벨</p>
-                        <p className="mt-1 font-bold text-zinc-100">
-                          Lv.{character.CharacterLevel}
-                        </p>
+                    <div className="p-5">
+                      <p className="text-sm text-zinc-500">
+                        {character.CharacterClassName}
+                      </p>
+
+                      <h3 className="mt-1 text-2xl font-black text-white">
+                        {character.CharacterName}
+                      </h3>
+
+                      <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-xl bg-zinc-950/80 p-3">
+                          <p className="text-zinc-500">전투 레벨</p>
+                          <p className="mt-1 font-bold text-zinc-100">
+                            Lv.{character.CharacterLevel}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-zinc-950/80 p-3">
+                          <p className="text-zinc-500">아이템 레벨</p>
+                          <p className="mt-1 font-bold text-violet-300">
+                            {character.ItemAvgLevel}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-zinc-950/80 p-3">
+                          <p className="text-zinc-500">전투력</p>
+                          <p className="mt-1 font-bold text-zinc-100">
+                            {character.combatPower ?? "-"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-zinc-950/80 p-3">
+                          <p className="text-zinc-500">원정대 레벨</p>
+                          <p className="mt-1 font-bold text-zinc-100">
+                            Lv.{character.expeditionLevel ?? "-"}
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="rounded-xl bg-zinc-950/80 p-3">
-                        <p className="text-zinc-500">아이템 레벨</p>
-                        <p className="mt-1 font-bold text-violet-300">
-                          {character.ItemAvgLevel}
+                      <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+                        <p className="text-xs text-zinc-500">아크그리드</p>
+                        <p className="mt-1 text-sm font-medium text-zinc-200">
+                          {character.arkGridText}
                         </p>
                       </div>
                     </div>
@@ -138,7 +240,7 @@ export default async function MemberDetailPage({
           </section>
         ))}
 
-        {sortedSiblings.length === 0 && (
+        {details.length === 0 && (
           <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-10 text-center text-zinc-500">
             원정대 캐릭터를 불러오지 못했습니다.
           </div>
