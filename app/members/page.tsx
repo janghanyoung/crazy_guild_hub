@@ -3,9 +3,7 @@ import PageContainer from "../../components/ui/PageContainer";
 import SectionTitle from "../../components/ui/SectionTitle";
 import Link from "next/link";
 
-const guildMembers = [
-  "파이썬을쓰는자",
-];
+import { guildMembers } from "../../lib/data/guild-members";
 
 type LostArkProfile = {
   CharacterImage?: string | null;
