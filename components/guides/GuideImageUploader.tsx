@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { PointerEvent } from "react";
 import Cropper from "react-easy-crop";
 import { supabase } from "../../lib/supabase/client";
 
@@ -29,6 +30,29 @@ type Props = {
   content?: string;
   onReplaceContent?: (nextContent: string) => void;
 };
+
+type Interaction =
+  | {
+      type: "draw";
+      startX: number;
+      startY: number;
+      annotation: Annotation;
+    }
+  | {
+      type: "move";
+      id: string;
+      startX: number;
+      startY: number;
+      original: Annotation;
+    }
+  | {
+      type: "resize";
+      id: string;
+      startX: number;
+      startY: number;
+      original: Annotation;
+    }
+  | null;
 
 function extractMarkdownImages(content: string) {
   const regex = /!\[([^\]]*)\]\(([^)]+)\)/g;
@@ -66,17 +90,13 @@ export default function GuideImageUploader({
 
   const [tool, setTool] = useState<Tool>("arrow");
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [draft, setDraft] = useState<Annotation | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  const startRef = useRef<{ x: number; y: number } | null>(null);
+  const interactionRef = useRef<Interaction>(null);
   const overlayFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const markdownImages = useMemo(
-    () => extractMarkdownImages(content),
-    [content]
-  );
-
+  const markdownImages = useMemo(() => extractMarkdownImages(content), [content]);
   const hasImage = useMemo(() => !!imageSrc, [imageSrc]);
 
   const onCropComplete = useCallback(
@@ -93,9 +113,21 @@ export default function GuideImageUploader({
     setCroppedSrc(null);
     setEditMode(false);
     setAnnotations([]);
-    setDraft(null);
+    setSelectedId(null);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
+    interactionRef.current = null;
+  }
+
+  function getRelativePoint(event: PointerEvent<HTMLDivElement>) {
+    const rect = canvasRef.current?.getBoundingClientRect();
+
+    if (!rect) return { x: 0, y: 0 };
+
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
   }
 
   async function uploadBlob(blob: Blob, fileNameExt = "webp") {
@@ -113,10 +145,7 @@ export default function GuideImageUploader({
       return;
     }
 
-    const { data } = supabase.storage
-      .from("guide-images")
-      .getPublicUrl(filePath);
-
+    const { data } = supabase.storage.from("guide-images").getPublicUrl(filePath);
     const markdown = `![공략 이미지](${data.publicUrl})`;
 
     if (editingMarkdown && onReplaceContent) {
@@ -189,24 +218,12 @@ export default function GuideImageUploader({
     }
   }
 
-  function getRelativePoint(event: React.PointerEvent<HTMLDivElement>) {
-    const rect = canvasRef.current?.getBoundingClientRect();
-
-    if (!rect) return { x: 0, y: 0 };
-
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  }
-
-  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+  function handleCanvasPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (!croppedSrc) return;
 
     const point = getRelativePoint(event);
-    startRef.current = point;
 
-    setDraft({
+    const annotation: Annotation = {
       id: crypto.randomUUID(),
       tool,
       x: point.x,
@@ -214,68 +231,186 @@ export default function GuideImageUploader({
       width: tool === "text" ? 160 : 0,
       height: tool === "text" ? 44 : 0,
       text: tool === "text" ? "텍스트" : undefined,
-    });
+    };
+
+    interactionRef.current = {
+      type: "draw",
+      startX: point.x,
+      startY: point.y,
+      annotation,
+    };
+
+    setSelectedId(annotation.id);
+    setAnnotations((prev) => [...prev, annotation]);
   }
 
-  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (!startRef.current || !draft) return;
+  function handleAnnotationPointerDown(
+    event: PointerEvent<HTMLDivElement>,
+    annotation: Annotation
+  ) {
+    event.stopPropagation();
 
     const point = getRelativePoint(event);
-    const start = startRef.current;
 
-    setDraft({
-      ...draft,
-      x: Math.min(start.x, point.x),
-      y: Math.min(start.y, point.y),
-      width: Math.abs(point.x - start.x),
-      height: Math.abs(point.y - start.y),
-    });
+    setSelectedId(annotation.id);
+
+    interactionRef.current = {
+      type: "move",
+      id: annotation.id,
+      startX: point.x,
+      startY: point.y,
+      original: annotation,
+    };
   }
 
-  function handlePointerUp() {
-    if (!draft) return;
+  function handleResizePointerDown(
+    event: PointerEvent<HTMLDivElement>,
+    annotation: Annotation
+  ) {
+    event.stopPropagation();
 
-    if (draft.tool !== "text" && draft.tool !== "image") {
-      if (draft.width < 10 && draft.height < 10) {
-        setDraft(null);
-        startRef.current = null;
-        return;
-      }
+    const point = getRelativePoint(event);
+
+    setSelectedId(annotation.id);
+
+    interactionRef.current = {
+      type: "resize",
+      id: annotation.id,
+      startX: point.x,
+      startY: point.y,
+      original: annotation,
+    };
+  }
+
+  function handleCanvasPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const interaction = interactionRef.current;
+    if (!interaction) return;
+
+    const point = getRelativePoint(event);
+
+    if (interaction.type === "draw") {
+      const startX = interaction.startX;
+      const startY = interaction.startY;
+
+      const x = Math.min(startX, point.x);
+      const y = Math.min(startY, point.y);
+      const width = Math.abs(point.x - startX);
+      const height = Math.abs(point.y - startY);
+
+      setAnnotations((prev) =>
+        prev.map((item) =>
+          item.id === interaction.annotation.id
+            ? {
+                ...item,
+                x,
+                y,
+                width: item.tool === "text" ? Math.max(width, 160) : width,
+                height: item.tool === "text" ? Math.max(height, 44) : height,
+              }
+            : item
+        )
+      );
+
+      return;
     }
 
-    const next =
-      draft.tool === "text"
-        ? {
-            ...draft,
-            width: Math.max(draft.width, 120),
-            height: Math.max(draft.height, 36),
-            text:
-              prompt("라벨 텍스트를 입력하세요.", draft.text ?? "텍스트") ??
-              "텍스트",
-          }
-        : draft;
+    if (interaction.type === "move") {
+      const dx = point.x - interaction.startX;
+      const dy = point.y - interaction.startY;
 
-    setAnnotations((prev) => [...prev, next]);
-    setDraft(null);
-    startRef.current = null;
+      setAnnotations((prev) =>
+        prev.map((item) =>
+          item.id === interaction.id
+            ? {
+                ...item,
+                x: interaction.original.x + dx,
+                y: interaction.original.y + dy,
+              }
+            : item
+        )
+      );
+
+      return;
+    }
+
+    if (interaction.type === "resize") {
+      const dx = point.x - interaction.startX;
+      const dy = point.y - interaction.startY;
+
+      setAnnotations((prev) =>
+        prev.map((item) =>
+          item.id === interaction.id
+            ? {
+                ...item,
+                width: Math.max(24, interaction.original.width + dx),
+                height: Math.max(24, interaction.original.height + dy),
+              }
+            : item
+        )
+      );
+    }
+  }
+
+  function handleCanvasPointerUp() {
+    const interaction = interactionRef.current;
+
+    if (interaction?.type === "draw") {
+      setAnnotations((prev) =>
+        prev
+          .map((item) => {
+            if (item.id !== interaction.annotation.id) return item;
+
+            if (item.tool === "text") {
+              return {
+                ...item,
+                width: Math.max(item.width, 160),
+                height: Math.max(item.height, 44),
+                text:
+                  prompt("라벨 텍스트를 입력하세요.", item.text ?? "텍스트") ??
+                  "텍스트",
+              };
+            }
+
+            return item;
+          })
+          .filter((item) => {
+            if (item.id !== interaction.annotation.id) return true;
+            if (item.tool === "text") return true;
+            return item.width >= 10 || item.height >= 10;
+          })
+      );
+    }
+
+    interactionRef.current = null;
+  }
+
+  function removeSelectedAnnotation() {
+    if (!selectedId) return;
+
+    setAnnotations((prev) => prev.filter((item) => item.id !== selectedId));
+    setSelectedId(null);
   }
 
   function removeLastAnnotation() {
     setAnnotations((prev) => prev.slice(0, -1));
+    setSelectedId(null);
   }
 
   function clearAnnotations() {
     setAnnotations([]);
+    setSelectedId(null);
   }
 
   function handleOverlayImage(file: File) {
     const reader = new FileReader();
 
     reader.onload = () => {
+      const id = crypto.randomUUID();
+
       setAnnotations((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id,
           tool: "image",
           x: 40,
           y: 40,
@@ -284,6 +419,8 @@ export default function GuideImageUploader({
           imageSrc: reader.result as string,
         },
       ]);
+
+      setSelectedId(id);
     };
 
     reader.readAsDataURL(file);
@@ -376,8 +513,8 @@ export default function GuideImageUploader({
 
         ctx.font = "bold 34px sans-serif";
         const measured = ctx.measureText(text);
-        const boxWidth = measured.width + padding * 2;
-        const boxHeight = 52;
+        const boxWidth = Math.max(width, measured.width + padding * 2);
+        const boxHeight = Math.max(height, 52);
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
         ctx.fillRect(x, y, boxWidth, boxHeight);
@@ -424,20 +561,15 @@ export default function GuideImageUploader({
     }
   }
 
-  function startEditingExistingImage(image: {
-    url: string;
-    markdown: string;
-  }) {
+  function startEditingExistingImage(image: { url: string; markdown: string }) {
     setImageSrc(image.url);
     setOriginalFile(null);
     setEditingMarkdown(image.markdown);
     setEditMode(true);
     setCroppedSrc(null);
     setAnnotations([]);
-    setDraft(null);
+    setSelectedId(null);
   }
-
-  const allAnnotations = draft ? [...annotations, draft] : annotations;
 
   return (
     <div className="space-y-4">
@@ -462,6 +594,7 @@ export default function GuideImageUploader({
                 setEditMode(false);
                 setEditingMarkdown(null);
                 setAnnotations([]);
+                setSelectedId(null);
               };
 
               reader.readAsDataURL(file);
@@ -614,6 +747,13 @@ export default function GuideImageUploader({
             />
 
             <button
+              onClick={removeSelectedAnnotation}
+              className="rounded-lg border border-zinc-700 px-3 py-2 text-sm font-bold text-zinc-300 hover:border-red-500 hover:text-red-300"
+            >
+              선택 삭제
+            </button>
+
+            <button
               onClick={removeLastAnnotation}
               className="rounded-lg border border-zinc-700 px-3 py-2 text-sm font-bold text-zinc-300 hover:border-yellow-500 hover:text-yellow-300"
             >
@@ -628,11 +768,16 @@ export default function GuideImageUploader({
             </button>
           </div>
 
+          <p className="mb-3 text-xs text-zinc-500">
+            요소를 클릭해서 선택한 뒤 드래그하면 이동됩니다. 우하단 작은 점을 잡으면 크기 조절됩니다.
+          </p>
+
           <div
             ref={canvasRef}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handleCanvasPointerMove}
+            onPointerUp={handleCanvasPointerUp}
+            onPointerLeave={handleCanvasPointerUp}
             className="relative mx-auto aspect-video w-full max-w-4xl cursor-crosshair overflow-hidden rounded-xl bg-black select-none"
           >
             <img
@@ -642,75 +787,93 @@ export default function GuideImageUploader({
               draggable={false}
             />
 
-            {allAnnotations.map((annotation) => (
-              <div
-                key={annotation.id}
-                className="pointer-events-none absolute"
-                style={{
-                  left: annotation.x,
-                  top: annotation.y,
-                  width: annotation.width,
-                  height: annotation.height,
-                }}
-              >
-                {annotation.tool === "rect" && (
-                  <div className="h-full w-full border-4 border-red-500" />
-                )}
+            {annotations.map((annotation) => {
+              const selected = selectedId === annotation.id;
 
-                {annotation.tool === "circle" && (
-                  <div className="h-full w-full rounded-full border-4 border-red-500" />
-                )}
+              return (
+                <div
+                  key={annotation.id}
+                  onPointerDown={(event) =>
+                    handleAnnotationPointerDown(event, annotation)
+                  }
+                  className={`absolute cursor-move ${
+                    selected ? "ring-2 ring-violet-400" : ""
+                  }`}
+                  style={{
+                    left: annotation.x,
+                    top: annotation.y,
+                    width: annotation.width,
+                    height: annotation.height,
+                  }}
+                >
+                  {annotation.tool === "rect" && (
+                    <div className="h-full w-full border-4 border-red-500" />
+                  )}
 
-                {annotation.tool === "arrow" && (
-                  <svg
-                    className="h-full w-full overflow-visible"
-                    viewBox={`0 0 ${Math.max(annotation.width, 1)} ${Math.max(
-                      annotation.height,
-                      1
-                    )}`}
-                    preserveAspectRatio="none"
-                  >
-                    <defs>
-                      <marker
-                        id={`arrowhead-${annotation.id}`}
-                        markerWidth="10"
-                        markerHeight="10"
-                        refX="8"
-                        refY="3"
-                        orient="auto"
-                      >
-                        <path d="M0,0 L0,6 L9,3 z" fill="#ef4444" />
-                      </marker>
-                    </defs>
+                  {annotation.tool === "circle" && (
+                    <div className="h-full w-full rounded-full border-4 border-red-500" />
+                  )}
 
-                    <line
-                      x1="0"
-                      y1="0"
-                      x2={Math.max(annotation.width, 1)}
-                      y2={Math.max(annotation.height, 1)}
-                      stroke="#ef4444"
-                      strokeWidth="5"
-                      markerEnd={`url(#arrowhead-${annotation.id})`}
+                  {annotation.tool === "arrow" && (
+                    <svg
+                      className="h-full w-full overflow-visible"
+                      viewBox={`0 0 ${Math.max(annotation.width, 1)} ${Math.max(
+                        annotation.height,
+                        1
+                      )}`}
+                      preserveAspectRatio="none"
+                    >
+                      <defs>
+                        <marker
+                          id={`arrowhead-${annotation.id}`}
+                          markerWidth="10"
+                          markerHeight="10"
+                          refX="8"
+                          refY="3"
+                          orient="auto"
+                        >
+                          <path d="M0,0 L0,6 L9,3 z" fill="#ef4444" />
+                        </marker>
+                      </defs>
+
+                      <line
+                        x1="0"
+                        y1="0"
+                        x2={Math.max(annotation.width, 1)}
+                        y2={Math.max(annotation.height, 1)}
+                        stroke="#ef4444"
+                        strokeWidth="5"
+                        markerEnd={`url(#arrowhead-${annotation.id})`}
+                      />
+                    </svg>
+                  )}
+
+                  {annotation.tool === "text" && (
+                    <div className="flex h-full w-full items-center rounded border-2 border-red-500 bg-black/75 px-3 py-1 text-lg font-black text-white">
+                      {annotation.text ?? "텍스트"}
+                    </div>
+                  )}
+
+                  {annotation.tool === "image" && annotation.imageSrc && (
+                    <img
+                      src={annotation.imageSrc}
+                      alt="덧댄 이미지"
+                      className="h-full w-full object-contain"
+                      draggable={false}
                     />
-                  </svg>
-                )}
+                  )}
 
-                {annotation.tool === "text" && (
-                  <div className="inline-flex rounded border-2 border-red-500 bg-black/75 px-3 py-1 text-lg font-black text-white">
-                    {annotation.text ?? "텍스트"}
-                  </div>
-                )}
-
-                {annotation.tool === "image" && annotation.imageSrc && (
-                  <img
-                    src={annotation.imageSrc}
-                    alt="덧댄 이미지"
-                    className="h-full w-full object-contain"
-                    draggable={false}
-                  />
-                )}
-              </div>
-            ))}
+                  {selected && (
+                    <div
+                      onPointerDown={(event) =>
+                        handleResizePointerDown(event, annotation)
+                      }
+                      className="absolute -bottom-2 -right-2 h-5 w-5 cursor-se-resize rounded-full border-2 border-white bg-violet-500"
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-5 flex gap-3">
@@ -730,6 +893,7 @@ export default function GuideImageUploader({
               onClick={() => {
                 setCroppedSrc(null);
                 setAnnotations([]);
+                setSelectedId(null);
               }}
               className="rounded-xl border border-zinc-700 px-5 py-2 text-sm font-bold text-zinc-300 transition hover:border-yellow-500 hover:text-yellow-300"
             >
