@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import PageContainer from "../../../components/ui/PageContainer";
 import EquipmentGrid from "../../../components/character/EquipmentGrid";
+import GemGrid from "../../../components/character/GemGrid";
+import ArmoryEffects from "../../../components/character/ArmoryEffects";
 
 type Profile = {
   CharacterImage?: string | null;
@@ -43,10 +45,11 @@ export default async function CharacterDetailPage({
   const characterName = decodeURIComponent(name);
   const encodedName = encodeURIComponent(characterName);
 
-  const [profile, equipment] = await Promise.all([
-    loaFetch<Profile>(`/armories/characters/${encodedName}/profiles`),
-    loaFetch<any[]>(`/armories/characters/${encodedName}/equipment`),
-  ]);
+  const [profile, equipment, gems] = await Promise.all([
+  loaFetch<Profile>(`/armories/characters/${encodedName}/profiles`),
+  loaFetch<any[]>(`/armories/characters/${encodedName}/equipment`),
+  loaFetch<any>(`/armories/characters/${encodedName}/gems`),
+]);
 
   return (
     <PageContainer>
@@ -115,6 +118,8 @@ export default async function CharacterDetailPage({
       </section>
 
       <EquipmentGrid equipments={equipment ?? []} />
+      <GemGrid gems={gems?.Gems ?? []} />
+      <ArmoryEffects profile={profile} />
     </PageContainer>
   );
 }
