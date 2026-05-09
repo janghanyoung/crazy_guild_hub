@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
+import AuthGate from "@/components/auth/AuthGate";
 
 export const metadata: Metadata = {
   title: "Crazy Guild Hub",
@@ -16,14 +17,16 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <div className="min-h-screen bg-zinc-950 text-zinc-100">
-          <Sidebar />
+        <AuthGate>
+          <div className="min-h-screen bg-zinc-950 text-zinc-100">
+            <Sidebar />
 
-          <div className="min-h-screen lg:pl-64">
-            <Header />
-            <main>{children}</main>
+            <div className="min-h-screen lg:pl-64">
+              <Header />
+              <main>{children}</main>
+            </div>
           </div>
-        </div>
+        </AuthGate>
       </body>
     </html>
   );
