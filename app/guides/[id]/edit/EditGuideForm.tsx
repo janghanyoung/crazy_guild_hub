@@ -1,50 +1,39 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import PageContainer from "../../../components/ui/PageContainer";
-import SectionTitle from "../../../components/ui/SectionTitle";
-import { supabase } from "../../../lib/supabase/client";
+import PageContainer from "../../../../components/ui/PageContainer";
+import SectionTitle from "../../../../components/ui/SectionTitle";
+import { supabase } from "../../../../lib/supabase/client";
+import type { Guide } from "../../../../lib/supabase/guides";
 
-export default function NewGuideForm() {
+export default function EditGuideForm({ guide }: { guide: Guide }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const defaultCategory = searchParams.get("category") ?? "general";
-  const defaultTargetType = searchParams.get("targetType") ?? "";
-  const defaultTargetName = searchParams.get("targetName") ?? "";
-
-  const [title, setTitle] = useState(
-    defaultTargetName ? `${defaultTargetName} 공략` : ""
-  );
-  const [category, setCategory] = useState(defaultCategory);
-  const [targetType, setTargetType] = useState(defaultTargetType);
-  const [targetName, setTargetName] = useState(defaultTargetName);
-  const [videoUrl, setVideoUrl] = useState("");
-  const [content, setContent] = useState("");
+  const [title, setTitle] = useState(guide.title);
+  const [category, setCategory] = useState(guide.category);
+  const [targetType, setTargetType] = useState(guide.target_type ?? "");
+  const [targetName, setTargetName] = useState(guide.target_name ?? "");
+  const [videoUrl, setVideoUrl] = useState(guide.video_url ?? "");
+  const [content, setContent] = useState(guide.content ?? "");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
 
-  async function handleSubmit() {
-    if (!title.trim()) {
-      alert("제목을 입력하세요.");
-      return;
-    }
-
+  async function handleSave() {
     setSaving(true);
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("guides")
-      .insert({
+      .update({
         title,
         category,
         target_type: targetType || null,
         target_name: targetName || null,
         video_url: videoUrl || null,
         content,
+        updated_at: new Date().toISOString(),
       })
-      .select("id")
-      .single();
+      .eq("id", guide.id);
 
     setSaving(false);
 
@@ -53,17 +42,17 @@ export default function NewGuideForm() {
       return;
     }
 
-    router.push(`/guides/${data.id}`);
+    router.push(`/guides/${guide.id}`);
   }
 
   return (
     <PageContainer>
-      <SectionTitle title="공략 작성" description="공략을 작성하고 필요한 페이지에 연결합니다." />
+      <SectionTitle title="공략 수정" description="작성한 공략을 수정합니다." />
 
       <div className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <select
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(e) => setCategory(e.target.value as Guide["category"])}
           className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4"
         >
           <option value="raid">레이드 공략</option>
@@ -75,7 +64,6 @@ export default function NewGuideForm() {
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="공략 제목"
           className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4"
         />
 
@@ -83,13 +71,11 @@ export default function NewGuideForm() {
           <input
             value={targetType}
             onChange={(e) => setTargetType(e.target.value)}
-            placeholder="대상 종류"
             className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4"
           />
           <input
             value={targetName}
             onChange={(e) => setTargetName(e.target.value)}
-            placeholder="대상 이름"
             className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4"
           />
         </div>
@@ -128,25 +114,17 @@ export default function NewGuideForm() {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder={`예시:
-# 핵심 요약
-- 준비물:
-- 위치:
-- 주의사항:
-
-# 상세 공략
-내용을 적으세요.`}
             rows={18}
             className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7 outline-none focus:border-violet-500"
           />
         )}
 
         <button
-          onClick={handleSubmit}
+          onClick={handleSave}
           disabled={saving}
           className="h-12 rounded-xl bg-violet-600 px-6 font-bold text-white hover:bg-violet-500 disabled:opacity-50"
         >
-          {saving ? "저장 중..." : "공략 저장"}
+          {saving ? "저장 중..." : "수정 저장"}
         </button>
       </div>
     </PageContainer>

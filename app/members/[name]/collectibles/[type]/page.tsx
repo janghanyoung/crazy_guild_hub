@@ -300,6 +300,11 @@ export default async function CollectibleDetailPage({
                       >
                         공략 작성
                       </Link>
+
+                      
+
+
+
                     )}
                   </div>
                 </div>

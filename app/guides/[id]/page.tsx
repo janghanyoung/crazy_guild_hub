@@ -55,6 +55,13 @@ export default async function GuideDetailPage({
 
         <h1 className="mt-5 text-3xl font-black">{guide.title}</h1>
 
+        <Link  
+        href={`/guides/${guide.id}/edit`}
+        className="mt-5 inline-block rounded-xl border border-violet-500/40 px-4 py-2 text-sm font-bold text-violet-300 hover:bg-violet-500/10"
+        >
+            공략 수정
+            </Link>
+
         {guide.video_url && (
           <a
             href={guide.video_url}
