@@ -4,7 +4,6 @@ const menus = [
   { href: "/", label: "메인" },
   { href: "/members", label: "길드원" },
   { href: "/raids", label: "레이드" },
-  { href: "/collectibles", label: "내실" },
   { href: "/achievements", label: "업적" },
   { href: "/guides", label: "공략집" },
   { href: "/admin/members", label: "길드원 관리" },
