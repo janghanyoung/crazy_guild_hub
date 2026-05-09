@@ -195,8 +195,9 @@ export default async function MemberDetailPage({
                 const isMain = character.CharacterName === characterName;
 
                 return (
-                  <article
+                  <Link
                     key={character.CharacterName}
+                    href={`/characters/${encodeURIComponent(character.CharacterName)}`}
                     className={`overflow-hidden rounded-2xl border transition hover:-translate-y-1 ${
                       isMain
                         ? "border-violet-500/70 bg-violet-950/30"
@@ -271,7 +272,7 @@ export default async function MemberDetailPage({
                         </p>
                       </div>
                     </div>
-                  </article>
+                  </Link>
                 );
               })}
             </div>
