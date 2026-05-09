@@ -141,7 +141,10 @@ export default async function MemberDetailPage({
         </p>
       </div>
 
-      <CollectibleSummary collectibles={collectibles} />
+      <CollectibleSummary  
+      collectibles={collectibles}
+      characterName={characterName}
+      />
 
       <div className="mt-8 space-y-10">
         {Object.entries(groupedByServer).map(([serverName, characters]) => (
