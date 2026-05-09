@@ -3,7 +3,6 @@
 import { useState } from "react";
 import PageContainer from "../../../components/ui/PageContainer";
 import SectionTitle from "../../../components/ui/SectionTitle";
-import { supabase } from "../../../lib/supabase/client";
 
 export default function PinPage() {
   const [characterName, setCharacterName] = useState("");
@@ -12,54 +11,29 @@ export default function PinPage() {
   const [saving, setSaving] = useState(false);
 
   async function handleChangePin() {
-    if (!characterName.trim()) {
-      alert("대표 캐릭터명을 입력하세요.");
-      return;
-    }
-
-    if (!currentPin.trim()) {
-      alert("현재 PIN을 입력하세요.");
-      return;
-    }
-
-    if (!newPin.trim()) {
-      alert("새 PIN을 입력하세요.");
-      return;
-    }
-
-    if (newPin.length < 4) {
-      alert("PIN은 최소 4자리로 설정하세요.");
-      return;
-    }
-
     setSaving(true);
 
-    const { data: member, error: findError } = await supabase
-      .from("guild_members")
-      .select("id, main_character, pin_code")
-      .eq("main_character", characterName)
-      .eq("pin_code", currentPin)
-      .single();
+    const response = await fetch("/api/member/change-pin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mainCharacter: characterName,
+        currentPin,
+        newPin,
+      }),
+    });
 
-    if (findError || !member) {
-      setSaving(false);
-      alert("대표 캐릭터명 또는 현재 PIN이 틀렸습니다.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("guild_members")
-      .update({ pin_code: newPin })
-      .eq("id", member.id);
-
+    const result = await response.json();
     setSaving(false);
 
-    if (error) {
-      alert(error.message);
+    if (!response.ok) {
+      alert(result.message ?? "PIN 변경 실패");
       return;
     }
 
-    localStorage.setItem("guild_main_character", member.main_character);
+    localStorage.setItem("guild_main_character", result.mainCharacter);
 
     alert("PIN이 변경되었습니다.");
     setCurrentPin("");
@@ -74,39 +48,28 @@ export default function PinPage() {
       />
 
       <div className="max-w-xl space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <div>
-          <label className="text-sm font-bold text-zinc-300">
-            대표 캐릭터명
-          </label>
-          <input
-            value={characterName}
-            onChange={(e) => setCharacterName(e.target.value)}
-            placeholder="예: 파이썬을쓰는자"
-            className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
-          />
-        </div>
+        <input
+          value={characterName}
+          onChange={(e) => setCharacterName(e.target.value)}
+          placeholder="대표 캐릭터명"
+          className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+        />
 
-        <div>
-          <label className="text-sm font-bold text-zinc-300">현재 PIN</label>
-          <input
-            type="password"
-            value={currentPin}
-            onChange={(e) => setCurrentPin(e.target.value)}
-            placeholder="현재 PIN"
-            className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
-          />
-        </div>
+        <input
+          type="password"
+          value={currentPin}
+          onChange={(e) => setCurrentPin(e.target.value)}
+          placeholder="현재 PIN"
+          className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+        />
 
-        <div>
-          <label className="text-sm font-bold text-zinc-300">새 PIN</label>
-          <input
-            type="password"
-            value={newPin}
-            onChange={(e) => setNewPin(e.target.value)}
-            placeholder="새 PIN"
-            className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
-          />
-        </div>
+        <input
+          type="password"
+          value={newPin}
+          onChange={(e) => setNewPin(e.target.value)}
+          placeholder="새 PIN"
+          className="h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+        />
 
         <button
           onClick={handleChangePin}
