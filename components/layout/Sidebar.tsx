@@ -7,6 +7,7 @@ const menus = [
   { href: "/achievements", label: "업적" },
   { href: "/guides", label: "공략집" },
   { href: "/admin/members", label: "길드원 관리" },
+  { href: "/my/pin", label: "내 PIN" },
 ];
 
 export default function Sidebar() {
