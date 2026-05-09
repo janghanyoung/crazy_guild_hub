@@ -1,4 +1,4 @@
-cat <<'EOF' > lib/supabase/guides.ts
+
 import { supabase } from "./client";
 
 export type Guide = {
@@ -62,4 +62,3 @@ export async function getGuidesByTarget(params: {
 
   return data as Guide[];
 }
-EOF
