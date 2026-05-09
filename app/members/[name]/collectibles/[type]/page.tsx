@@ -26,7 +26,11 @@ type Collectible = {
 
 export const revalidate = 1800;
 
-function getVal<T>(obj: Record<string, unknown>, upper: string, lower: string): T | undefined {
+function getVal<T>(
+  obj: Record<string, unknown>,
+  upper: string,
+  lower: string
+): T | undefined {
   return (obj[upper] ?? obj[lower]) as T | undefined;
 }
 
@@ -49,6 +53,7 @@ async function getCollectibles(characterName: string): Promise<Collectible[]> {
   );
 
   if (!response.ok) return [];
+
   return response.json();
 }
 
@@ -65,35 +70,71 @@ export default async function CollectibleDetailPage({
   const collectibles = await getCollectibles(characterName);
 
   const selected = collectibles.find((item) => {
-    const itemType = getVal<string>(item as Record<string, unknown>, "Type", "type");
+    const itemType = getVal<string>(
+      item as Record<string, unknown>,
+      "Type",
+      "type"
+    );
+
     return itemType === collectibleType;
   });
 
   const selectedRecord = selected as Record<string, unknown> | undefined;
 
   const point = Number(
-    selectedRecord ? getVal<number>(selectedRecord, "Point", "point") ?? 0 : 0
+    selectedRecord
+      ? getVal<number>(selectedRecord, "Point", "point") ?? 0
+      : 0
   );
 
   const maxPoint = Number(
-    selectedRecord ? getVal<number>(selectedRecord, "MaxPoint", "maxPoint") ?? 0 : 0
+    selectedRecord
+      ? getVal<number>(selectedRecord, "MaxPoint", "maxPoint") ?? 0
+      : 0
   );
 
   const icon = selectedRecord
     ? getVal<string>(selectedRecord, "Icon", "icon")
     : undefined;
 
-  const detailRows =
-    selectedRecord
-      ? getVal<CollectiblePoint[]>(
-          selectedRecord,
-          "CollectiblePoints",
-          "collectiblePoints"
-        ) ?? []
-      : [];
+  const detailRows = selectedRecord
+    ? getVal<CollectiblePoint[]>(
+        selectedRecord,
+        "CollectiblePoints",
+        "collectiblePoints"
+      ) ?? []
+    : [];
+
+  const incompleteRows = detailRows.filter((row) => {
+    const rowRecord = row as Record<string, unknown>;
+
+    const rowPoint = Number(
+      getVal<number>(rowRecord, "Point", "point") ?? 0
+    );
+
+    const rowMaxPoint = Number(
+      getVal<number>(rowRecord, "MaxPoint", "maxPoint") ?? 0
+    );
+
+    return rowMaxPoint > 0 && rowPoint < rowMaxPoint;
+  });
 
   const percent = maxPoint > 0 ? Math.round((point / maxPoint) * 100) : 0;
   const remain = Math.max(maxPoint - point, 0);
+
+  const summaryCollectibles = collectibles.map((item) => ({
+    Type:
+      getVal<string>(item as Record<string, unknown>, "Type", "type") ?? "",
+    Icon:
+      getVal<string>(item as Record<string, unknown>, "Icon", "icon") ?? "",
+    Point: Number(
+      getVal<number>(item as Record<string, unknown>, "Point", "point") ?? 0
+    ),
+    MaxPoint: Number(
+      getVal<number>(item as Record<string, unknown>, "MaxPoint", "maxPoint") ??
+        0
+    ),
+  }));
 
   return (
     <PageContainer>
@@ -113,16 +154,7 @@ export default async function CollectibleDetailPage({
       </div>
 
       <CollectibleSummary
-        collectibles={collectibles.map((item) => ({
-          Type: getVal<string>(item as Record<string, unknown>, "Type", "type") ?? "",
-          Icon: getVal<string>(item as Record<string, unknown>, "Icon", "icon") ?? "",
-          Point: Number(
-            getVal<number>(item as Record<string, unknown>, "Point", "point") ?? 0
-          ),
-          MaxPoint: Number(
-            getVal<number>(item as Record<string, unknown>, "MaxPoint", "maxPoint") ?? 0
-          ),
-        }))}
+        collectibles={summaryCollectibles}
         characterName={characterName}
       />
 
@@ -181,23 +213,24 @@ export default async function CollectibleDetailPage({
       <section className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-black">상세 현황</h2>
+            <h2 className="text-xl font-black">미획득 상세 현황</h2>
             <p className="mt-2 text-sm text-zinc-400">
-              로스트아크 API의 CollectiblePoints 기준입니다.
+              아직 완료하지 못한 항목만 모아 보여줍니다.
             </p>
           </div>
 
           <span className="rounded-full border border-zinc-800 px-3 py-1 text-xs text-zinc-400">
-            {detailRows.length}개 항목
+            미획득 {incompleteRows.length}개
           </span>
         </div>
 
         <div className="space-y-3">
-          {detailRows.map((row) => {
+          {incompleteRows.map((row) => {
             const rowRecord = row as Record<string, unknown>;
 
             const rowName =
-              getVal<string>(rowRecord, "PointName", "pointName") ?? "이름 없음";
+              getVal<string>(rowRecord, "PointName", "pointName") ??
+              "이름 없음";
 
             const rowPoint = Number(
               getVal<number>(rowRecord, "Point", "point") ?? 0
@@ -212,18 +245,12 @@ export default async function CollectibleDetailPage({
                 ? Math.round((rowPoint / rowMaxPoint) * 100)
                 : 0;
 
-            const isComplete = rowMaxPoint > 0 && rowPoint >= rowMaxPoint;
-
             return (
               <article
                 key={rowName}
-                className={`rounded-xl border p-4 ${
-                  isComplete
-                    ? "border-emerald-500/20 bg-emerald-950/10"
-                    : "border-zinc-800 bg-zinc-950"
-                }`}
+                className="rounded-xl border border-zinc-800 bg-zinc-950 p-4 transition hover:border-violet-500/40"
               >
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="font-bold text-white">{rowName}</p>
                     <p className="mt-1 text-sm text-zinc-500">
@@ -231,20 +258,23 @@ export default async function CollectibleDetailPage({
                     </p>
                   </div>
 
-                  <p
-                    className={`text-sm font-black ${
-                      isComplete ? "text-emerald-300" : "text-violet-300"
-                    }`}
-                  >
-                    {rowPercent}%
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm font-black text-orange-300">
+                      {rowPercent}%
+                    </p>
+
+                    <Link
+                      href={`/guides?keyword=${encodeURIComponent(rowName)}`}
+                      className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-300 transition hover:bg-violet-500/10"
+                    >
+                      공략 보기
+                    </Link>
+                  </div>
                 </div>
 
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-800">
                   <div
-                    className={`h-full rounded-full ${
-                      isComplete ? "bg-emerald-500" : "bg-violet-500"
-                    }`}
+                    className="h-full rounded-full bg-orange-500"
                     style={{ width: `${rowPercent}%` }}
                   />
                 </div>
@@ -252,9 +282,9 @@ export default async function CollectibleDetailPage({
             );
           })}
 
-          {detailRows.length === 0 && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6 text-center text-sm text-zinc-500">
-              상세 항목이 없습니다.
+          {incompleteRows.length === 0 && (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-6 text-center text-sm text-emerald-300">
+              모든 항목을 완료했습니다.
             </div>
           )}
         </div>
