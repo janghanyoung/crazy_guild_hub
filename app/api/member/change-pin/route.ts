@@ -1,11 +1,5 @@
-
-console.log("SERVICE ROLE EXISTS:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -16,7 +10,7 @@ export async function POST(request: Request) {
 
   if (!mainCharacter || !currentPin || !newPin) {
     return NextResponse.json(
-      { message: "대표 캐릭터명, 현재 PIN, 새 PIN이 필요합니다." },
+      { message: "대표 캐릭터명, 현재 PIN, 새 PIN을 모두 입력해주세요." },
       { status: 400 }
     );
   }
@@ -32,17 +26,17 @@ export async function POST(request: Request) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-  return NextResponse.json(
-    { message: "정확한 비밀번호를 입력해주세요." },
-    { status: 401 }
-  );
-}
+    return NextResponse.json(
+      { message: "서버 설정 오류입니다. 관리자에게 문의해주세요." },
+      { status: 500 }
+    );
+  }
 
   const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
   const { data: member, error: findError } = await adminSupabase
     .from("guild_members")
-    .select("id, main_character, pin_code")
+    .select("id, main_character, pin_code, previous_pin_code")
     .eq("main_character", mainCharacter)
     .maybeSingle();
 
@@ -54,15 +48,26 @@ export async function POST(request: Request) {
   }
 
   if (String(member.pin_code ?? "") !== currentPin) {
+    if (String(member.previous_pin_code ?? "") === currentPin) {
+      return NextResponse.json(
+        { message: "이전 PIN입니다. 현재 PIN을 입력해주세요." },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
-      { message: "현재 PIN이 올바르지 않습니다." },
+      { message: "정확한 비밀번호를 입력해주세요." },
       { status: 401 }
     );
   }
 
   const { error: updateError } = await adminSupabase
     .from("guild_members")
-    .update({ pin_code: newPin })
+    .update({
+      previous_pin_code: member.pin_code,
+      pin_code: newPin,
+      pin_changed_at: new Date().toISOString(),
+    })
     .eq("id", member.id);
 
   if (updateError) {
