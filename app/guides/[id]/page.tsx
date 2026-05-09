@@ -13,6 +13,30 @@ const categoryLabel: Record<string, string> = {
   general: "일반 공략",
 };
 
+
+function getYoutubeEmbedUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.hostname.includes("youtu.be")) {
+      const id = parsed.pathname.replace("/", "");
+      return `https://www.youtube.com/embed/${id}`;
+    }
+
+    if (parsed.hostname.includes("youtube.com")) {
+      const id = parsed.searchParams.get("v");
+
+      if (id) {
+        return `https://www.youtube.com/embed/${id}`;
+      }
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 export default async function GuideDetailPage({
   params,
 }: {
@@ -64,15 +88,18 @@ export default async function GuideDetailPage({
             </Link>
 
         {guide.video_url && (
-          <a
-            href={guide.video_url}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-5 inline-block rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500"
-          >
-            영상 보기
-          </a>
-        )}
+  <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800 bg-black">
+    <div className="aspect-video">
+      <iframe
+        src={getYoutubeEmbedUrl(guide.video_url)}
+        title="공략 영상"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className="h-full w-full"
+      />
+    </div>
+  </div>
+)}
 
         <div className="mt-8 rounded-2xl bg-zinc-950 p-5">  
           <MarkdownViewer content={guide.content} />
