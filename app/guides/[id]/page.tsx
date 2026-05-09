@@ -2,7 +2,7 @@ import Link from "next/link";
 import PageContainer from "../../../components/ui/PageContainer";
 import { getGuide } from "../../../lib/supabase/guides";
 import MarkdownViewer from "../../../components/guides/MarkdownViewer";
-
+import DeleteGuideButton from "./DeleteGuideButton";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,6 @@ const categoryLabel: Record<string, string> = {
   achievement: "업적 공략",
   general: "일반 공략",
 };
-
 
 function getYoutubeEmbedUrl(url: string) {
   try {
@@ -80,30 +79,34 @@ export default async function GuideDetailPage({
 
         <h1 className="mt-5 text-3xl font-black">{guide.title}</h1>
 
-        <Link  
-        href={`/guides/${guide.id}/edit`}
-        className="mt-5 inline-block rounded-xl border border-violet-500/40 px-4 py-2 text-sm font-bold text-violet-300 hover:bg-violet-500/10"
-        >
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link
+            href={`/guides/${guide.id}/edit`}
+            className="rounded-xl border border-violet-500/40 px-4 py-2 text-sm font-bold text-violet-300 hover:bg-violet-500/10"
+          >
             공략 수정
-            </Link>
+          </Link>
+
+          <DeleteGuideButton guideId={guide.id} />
+        </div>
 
         {guide.video_url && (
-  <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800 bg-black">
-    <div className="aspect-video">
-      <iframe
-        src={getYoutubeEmbedUrl(guide.video_url)}
-        title="공략 영상"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="h-full w-full"
-      />
-    </div>
-  </div>
-)}
-
-        <div className="mt-8 rounded-2xl bg-zinc-950 p-5">  
-          <MarkdownViewer content={guide.content} />
+          <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800 bg-black">
+            <div className="aspect-video">
+              <iframe
+                src={getYoutubeEmbedUrl(guide.video_url)}
+                title="공략 영상"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="h-full w-full"
+              />
+            </div>
           </div>
+        )}
+
+        <div className="mt-8 rounded-2xl bg-zinc-950 p-5">
+          <MarkdownViewer content={guide.content} />
+        </div>
       </article>
     </PageContainer>
   );
