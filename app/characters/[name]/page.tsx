@@ -28,7 +28,7 @@ async function loaFetch<T>(path: string): Promise<T | null> {
         accept: "application/json",
         authorization: `bearer ${apiKey}`,
       },
-      next: { revalidate: 1800 },
+      next: { revalidate: 90 },
     }
   );
 
