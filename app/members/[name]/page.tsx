@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import PageContainer from "../../../components/ui/PageContainer";
+import EquipmentGrid from "../../../components/character/EquipmentGrid";
 
 type LostArkSibling = {
   ServerName: string;
@@ -68,6 +69,32 @@ async function getProfile(characterName: string): Promise<LostArkProfile | null>
   );
 }
 
+async function getCharacterData(characterName: string) {
+  const apiKey = process.env.LOA_API_KEY;
+
+  const response = await fetch(
+    `https://developer-lostark.game.onstove.com/armories/characters/${encodeURIComponent(
+      characterName
+    )}/equipment`,
+    {
+      headers: {
+        accept: "application/json",
+        authorization: `bearer ${apiKey}`,
+      },
+      next: {
+        revalidate: 1800,
+      },
+    }
+  );
+
+  if (!response.ok) return [];
+
+  return response.json();
+}
+
+
+
+
 async function getArkGrid(characterName: string) {
   return lostarkFetch<unknown>(
     `/armories/characters/${encodeURIComponent(characterName)}/arkgrid`
@@ -110,7 +137,10 @@ export default async function MemberDetailPage({
   const { name } = await params;
   const characterName = decodeURIComponent(name);
 
-  const siblings = await getSiblings(characterName);
+  const [siblings, equipments] = await Promise.all([
+    getSiblings(characterName),
+    getCharacterData(characterName),
+  ]);
 
   const sortedSiblings = [...siblings].sort(
     (a, b) => parseItemLevel(b.ItemAvgLevel) - parseItemLevel(a.ItemAvgLevel)
@@ -134,8 +164,9 @@ export default async function MemberDetailPage({
   );
 
   const groupedByServer = groupByServer(details);
-
+<EquipmentGrid equipments={equipments} />
   return (
+    
     <PageContainer>
       <Link href="/members" className="text-sm text-zinc-400 hover:text-white">
         ← 길드원 목록
