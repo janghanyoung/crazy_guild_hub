@@ -7,6 +7,7 @@ import SectionTitle from "../../../../components/ui/SectionTitle";
 import { supabase } from "../../../../lib/supabase/client";
 import type { Guide } from "../../../../lib/supabase/guides";
 import GuideImageUploader from "../../../../components/guides/GuideImageUploader";
+import MarkdownViewer from "../../../../components/guides/MarkdownViewer";
 
 export default function EditGuideForm({ guide }: { guide: Guide }) {
   const router = useRouter();

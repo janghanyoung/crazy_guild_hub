@@ -6,6 +6,7 @@ import PageContainer from "../../../components/ui/PageContainer";
 import SectionTitle from "../../../components/ui/SectionTitle";
 import { supabase } from "../../../lib/supabase/client";
 import GuideImageUploader from "../../../components/guides/GuideImageUploader";
+import MarkdownViewer from "../../../components/guides/MarkdownViewer";
 
 const guideTargets = {
   raid: {
@@ -272,25 +273,39 @@ export default function NewGuideForm() {
           />
 
 
-        {preview ? (
-          <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7">
-            {content || "미리볼 내용이 없습니다."}
-          </div>
-        ) : (
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={`# 핵심 요약
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+  <div>
+    <div className="mb-2 flex items-center justify-between">
+      <label className="text-sm font-bold text-zinc-300">작성</label>
+      <span className="text-xs text-zinc-500">Markdown</span>
+    </div>
+
+    <textarea
+      value={content}
+      onChange={(e) => setContent(e.target.value)}
+      placeholder={`# 핵심 요약
 - 준비물:
 - 위치:
 - 주의사항:
 
 ## 상세 공략
 내용을 적으세요.`}
-            rows={18}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7 text-white outline-none focus:border-violet-500"
-          />
-        )}
+      rows={22}
+      className="w-full rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7 text-white outline-none focus:border-violet-500"
+    />
+  </div>
+
+  <div>
+    <div className="mb-2 flex items-center justify-between">
+      <label className="text-sm font-bold text-zinc-300">실시간 미리보기</label>
+      <span className="text-xs text-zinc-500">이미지도 여기서 확인</span>
+    </div>
+
+    <div className="min-h-[560px] overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+      <MarkdownViewer content={content || "아직 작성된 내용이 없습니다."} />
+    </div>
+  </div>
+</div>
 
         <button
           onClick={handleSubmit}
