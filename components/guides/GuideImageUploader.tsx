@@ -29,7 +29,9 @@ type Props = {
 
 export default function GuideImageUploader({ onUploaded }: Props) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [croppedSrc, setCroppedSrc] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -43,7 +45,7 @@ export default function GuideImageUploader({ onUploaded }: Props) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
 
-  const previewVisible = useMemo(() => !!imageSrc, [imageSrc]);
+  const hasImage = useMemo(() => !!imageSrc, [imageSrc]);
 
   const onCropComplete = useCallback(
     (_: unknown, croppedAreaPixelsValue: Area) => {
@@ -51,6 +53,52 @@ export default function GuideImageUploader({ onUploaded }: Props) {
     },
     []
   );
+
+  async function uploadBlob(blob: Blob, fileNameExt = "webp") {
+    const fileName = `${crypto.randomUUID()}.${fileNameExt}`;
+    const filePath = `guides/${fileName}`;
+
+    const { error } = await supabase.storage
+      .from("guide-images")
+      .upload(filePath, blob, {
+        contentType: blob.type || "image/webp",
+      });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const { data } = supabase.storage
+      .from("guide-images")
+      .getPublicUrl(filePath);
+
+    onUploaded(`\n\n![공략 이미지](${data.publicUrl})\n\n`);
+
+    resetImageState();
+  }
+
+  async function handleUploadOriginal() {
+    if (!originalFile) return;
+
+    try {
+      setUploading(true);
+      await uploadBlob(originalFile, originalFile.name.split(".").pop() || "png");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function resetImageState() {
+    setImageSrc(null);
+    setOriginalFile(null);
+    setCroppedSrc(null);
+    setEditMode(false);
+    setAnnotations([]);
+    setDraft(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+  }
 
   async function createCroppedDataUrl() {
     if (!imageSrc || !croppedAreaPixels) return null;
@@ -111,7 +159,6 @@ export default function GuideImageUploader({ onUploaded }: Props) {
     if (!croppedSrc) return;
 
     const point = getRelativePoint(event);
-
     startRef.current = point;
 
     setDraft({
@@ -155,7 +202,9 @@ export default function GuideImageUploader({ onUploaded }: Props) {
             ...draft,
             width: Math.max(draft.width, 120),
             height: Math.max(draft.height, 36),
-            text: prompt("라벨 텍스트를 입력하세요.", draft.text ?? "텍스트") ?? "텍스트",
+            text:
+              prompt("라벨 텍스트를 입력하세요.", draft.text ?? "텍스트") ??
+              "텍스트",
           }
         : draft;
 
@@ -205,7 +254,6 @@ export default function GuideImageUploader({ onUploaded }: Props) {
       ctx.strokeStyle = "#ef4444";
       ctx.fillStyle = "#ef4444";
       ctx.lineWidth = 6;
-      ctx.font = "bold 32px sans-serif";
 
       if (annotation.tool === "rect") {
         ctx.strokeRect(x, y, width, height);
@@ -230,7 +278,6 @@ export default function GuideImageUploader({ onUploaded }: Props) {
         const y1 = y;
         const x2 = x + width;
         const y2 = y + height;
-
         const angle = Math.atan2(y2 - y1, x2 - x1);
         const headLength = 30;
 
@@ -279,7 +326,7 @@ export default function GuideImageUploader({ onUploaded }: Props) {
     });
   }
 
-  async function handleUpload() {
+  async function handleUploadEdited() {
     try {
       setUploading(true);
 
@@ -290,30 +337,7 @@ export default function GuideImageUploader({ onUploaded }: Props) {
         return;
       }
 
-      const fileName = `${crypto.randomUUID()}.webp`;
-      const filePath = `guides/${fileName}`;
-
-      const { error } = await supabase.storage
-        .from("guide-images")
-        .upload(filePath, blob, {
-          contentType: "image/webp",
-        });
-
-      if (error) {
-        alert(error.message);
-        return;
-      }
-
-      const { data } = supabase.storage
-        .from("guide-images")
-        .getPublicUrl(filePath);
-
-      onUploaded(`\n\n![공략 이미지](${data.publicUrl})\n\n`);
-
-      setImageSrc(null);
-      setCroppedSrc(null);
-      setAnnotations([]);
-      setDraft(null);
+      await uploadBlob(blob, "webp");
     } finally {
       setUploading(false);
     }
@@ -337,8 +361,10 @@ export default function GuideImageUploader({ onUploaded }: Props) {
             const reader = new FileReader();
 
             reader.onload = () => {
+              setOriginalFile(file);
               setImageSrc(reader.result as string);
               setCroppedSrc(null);
+              setEditMode(false);
               setAnnotations([]);
             };
 
@@ -347,7 +373,43 @@ export default function GuideImageUploader({ onUploaded }: Props) {
         />
       </label>
 
-      {previewVisible && !croppedSrc && (
+      {hasImage && !editMode && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+          <div className="overflow-hidden rounded-xl bg-black">
+            <img
+              src={imageSrc!}
+              alt="선택한 이미지"
+              className="max-h-[420px] w-full object-contain"
+            />
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              onClick={handleUploadOriginal}
+              disabled={uploading}
+              className="rounded-xl bg-violet-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-violet-500 disabled:opacity-50"
+            >
+              {uploading ? "업로드 중..." : "그대로 삽입"}
+            </button>
+
+            <button
+              onClick={() => setEditMode(true)}
+              className="rounded-xl border border-zinc-700 px-5 py-2 text-sm font-bold text-zinc-300 transition hover:border-violet-500 hover:text-violet-300"
+            >
+              이미지 편집
+            </button>
+
+            <button
+              onClick={resetImageState}
+              className="rounded-xl border border-zinc-700 px-5 py-2 text-sm font-bold text-zinc-300 transition hover:border-red-500 hover:text-red-300"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+
+      {hasImage && editMode && !croppedSrc && (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
           <div className="relative h-[400px] overflow-hidden rounded-xl bg-black">
             <Cropper
@@ -383,13 +445,10 @@ export default function GuideImageUploader({ onUploaded }: Props) {
             </button>
 
             <button
-              onClick={() => {
-                setImageSrc(null);
-                setCroppedSrc(null);
-              }}
-              className="rounded-xl border border-zinc-700 px-5 py-2 text-sm font-bold text-zinc-300 transition hover:border-red-500 hover:text-red-300"
+              onClick={() => setEditMode(false)}
+              className="rounded-xl border border-zinc-700 px-5 py-2 text-sm font-bold text-zinc-300 transition hover:border-yellow-500 hover:text-yellow-300"
             >
-              취소
+              편집 취소
             </button>
           </div>
         </div>
@@ -484,6 +543,7 @@ export default function GuideImageUploader({ onUploaded }: Props) {
                         <path d="M0,0 L0,6 L9,3 z" fill="#ef4444" />
                       </marker>
                     </defs>
+
                     <line
                       x1="0"
                       y1="0"
@@ -507,7 +567,7 @@ export default function GuideImageUploader({ onUploaded }: Props) {
 
           <div className="mt-5 flex gap-3">
             <button
-              onClick={handleUpload}
+              onClick={handleUploadEdited}
               disabled={uploading}
               className="rounded-xl bg-violet-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-violet-500 disabled:opacity-50"
             >
@@ -525,11 +585,7 @@ export default function GuideImageUploader({ onUploaded }: Props) {
             </button>
 
             <button
-              onClick={() => {
-                setImageSrc(null);
-                setCroppedSrc(null);
-                setAnnotations([]);
-              }}
+              onClick={resetImageState}
               className="rounded-xl border border-zinc-700 px-5 py-2 text-sm font-bold text-zinc-300 transition hover:border-red-500 hover:text-red-300"
             >
               취소
