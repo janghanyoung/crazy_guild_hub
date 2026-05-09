@@ -3,7 +3,7 @@ import PageContainer from "../../components/ui/PageContainer";
 import SectionTitle from "../../components/ui/SectionTitle";
 import Link from "next/link";
 
-import { guildMembers } from "../../lib/data/guild-members";
+import { getGuildMembers } from "../../lib/supabase/guild-members";
 
 type LostArkProfile = {
   CharacterImage?: string | null;
@@ -37,9 +37,10 @@ async function getProfile(characterName: string) {
 
 
 export default async function MembersPage() {
+  const members = await getGuildMembers();
   const profiles = await Promise.all(
-    guildMembers.map((name) => getProfile(name))
-  );
+    members.map((member) => getProfile(member.main_character))
+);
 
   return (
     <PageContainer>
@@ -50,7 +51,7 @@ export default async function MembersPage() {
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {profiles.map((profile, index) => {
-          const fallbackName = guildMembers[index];
+          const fallbackName = members[index]?.main_character ?? "Unknown";
 
           if (!profile) {
             return (

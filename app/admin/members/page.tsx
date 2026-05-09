@@ -1,41 +1,126 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect, useState } from "react";
 import PageContainer from "../../../components/ui/PageContainer";
 import SectionTitle from "../../../components/ui/SectionTitle";
-import { guildMembers } from "../../../lib/data/guild-members";
+import { supabase } from "../../../lib/supabase/client";
+
+type GuildMember = {
+  id: string;
+  main_character: string;
+  guild_name: string | null;
+  server_name: string | null;
+};
 
 export default function AdminMembersPage() {
+  const [characterName, setCharacterName] = useState("");
+  const [members, setMembers] = useState<GuildMember[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  async function loadMembers() {
+    const { data } = await supabase
+      .from("guild_members")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    setMembers(data ?? []);
+  }
+
+  useEffect(() => {
+    loadMembers();
+  }, []);
+
+  async function handleAddMember() {
+    if (!characterName.trim()) return;
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `/api/lostark/profile/${encodeURIComponent(characterName)}`
+      );
+
+      if (!response.ok) {
+        alert("캐릭터 조회 실패");
+        return;
+      }
+
+      const profile = await response.json();
+
+      const { error } = await supabase.from("guild_members").insert({
+        main_character: profile.CharacterName,
+        guild_name: profile.GuildName,
+        server_name: profile.ServerName,
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setCharacterName("");
+      await loadMembers();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    await supabase
+      .from("guild_members")
+      .delete()
+      .eq("id", id);
+
+    await loadMembers();
+  }
+
   return (
     <PageContainer>
       <SectionTitle
         title="길드원 관리"
-        description="대표 캐릭터명을 기준으로 길드원을 관리합니다."
+        description="대표 캐릭터를 등록하면 길드원 페이지에 자동 표시됩니다."
       />
 
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
-        <h2 className="text-xl font-black">현재 등록된 대표 캐릭터</h2>
+        <div className="flex flex-col gap-3 md:flex-row">
+          <input
+            value={characterName}
+            onChange={(e) => setCharacterName(e.target.value)}
+            placeholder="대표 캐릭터명 입력"
+            className="h-12 flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-4 outline-none focus:border-violet-500"
+          />
 
-        <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {guildMembers.map((member) => (
-            <div
-              key={member}
-              className="rounded-xl border border-zinc-800 bg-zinc-950 p-4"
-            >
-              <p className="font-bold text-white">{member}</p>
-
-              <Link
-                href={`/members/${encodeURIComponent(member)}`}
-                className="mt-3 inline-block text-sm text-violet-300 hover:text-violet-200"
-              >
-                원정대 보기 →
-              </Link>
-            </div>
-          ))}
+          <button
+            onClick={handleAddMember}
+            disabled={loading}
+            className="h-12 rounded-xl bg-violet-600 px-6 font-bold text-white transition hover:bg-violet-500 disabled:opacity-50"
+          >
+            {loading ? "등록중..." : "길드원 추가"}
+          </button>
         </div>
 
-        <div className="mt-8 rounded-xl border border-yellow-900/50 bg-yellow-950/20 p-4 text-sm text-yellow-200">
-          현재는 mock 데이터 방식입니다.
-          <br />
-          다음 단계에서 Supabase 저장 기능과 관리자 입력창이 추가됩니다.
+        <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {members.map((member) => (
+            <article
+              key={member.id}
+              className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5"
+            >
+              <p className="text-xl font-black text-white">
+                {member.main_character}
+              </p>
+
+              <p className="mt-2 text-sm text-zinc-400">
+                {member.server_name} · {member.guild_name}
+              </p>
+
+              <button
+                onClick={() => handleDelete(member.id)}
+                className="mt-5 rounded-lg bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/30"
+              >
+                삭제
+              </button>
+            </article>
+          ))}
         </div>
       </div>
     </PageContainer>
