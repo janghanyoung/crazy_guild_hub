@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PageContainer from "../../../../components/ui/PageContainer";
 import SectionTitle from "../../../../components/ui/SectionTitle";
 import { supabase } from "../../../../lib/supabase/client";
@@ -20,32 +20,42 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
   const [content, setContent] = useState(guide.content ?? "");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
-  const [contributorName, setContributorName] = useState("");
+  const [editorCharacter, setEditorCharacter] = useState("");
 
-const mergedContributors = Array.from(
-  new Set([
-    ...(guide.contributors ?? []),
-    ...(contributorName ? [contributorName] : []),
-  ])
-);
-
+  useEffect(() => {
+    const auth = JSON.parse(localStorage.getItem("guild-auth") ?? "{}");
+    setEditorCharacter(auth.mainCharacter ?? "");
+  }, []);
 
   async function handleSave() {
+    if (!title.trim()) {
+      alert("제목을 입력하세요.");
+      return;
+    }
+
+    if (!editorCharacter) {
+      alert("로그인 정보가 없습니다. 다시 로그인해주세요.");
+      return;
+    }
+
+    const mergedContributors = Array.from(
+      new Set([...(guide.contributors ?? []), editorCharacter])
+    );
+
     setSaving(true);
 
     const { error } = await supabase
       .from("guides")
       .update({
-  title,
-  category,
-  target_type: targetType || null,
-  target_name: targetName || null,
-  video_url: videoUrl || null,
-  content,
-  updated_at: new Date().toISOString(),
-
-  contributors: mergedContributors,
-})
+        title,
+        category,
+        target_type: targetType || null,
+        target_name: targetName || null,
+        video_url: videoUrl || null,
+        content,
+        updated_at: new Date().toISOString(),
+        contributors: mergedContributors,
+      })
       .eq("id", guide.id);
 
     setSaving(false);
@@ -61,18 +71,14 @@ const mergedContributors = Array.from(
   return (
     <PageContainer>
       <SectionTitle title="공략 수정" description="작성한 공략을 수정합니다." />
-<div>
-  <label className="text-sm font-bold text-zinc-300">
-    수정 기여자
-  </label>
 
-  <input
-    value={contributorName}
-    onChange={(e) => setContributorName(e.target.value)}
-    placeholder="수정한 캐릭터명"
-    className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
-  />
-</div>
+      <div className="mb-5 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+        <p className="text-xs font-bold text-zinc-500">수정자</p>
+        <p className="mt-2 font-black text-yellow-300">
+          {editorCharacter || "로그인 정보 확인 중..."}
+        </p>
+      </div>
+
       <div className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <select
           value={category}
@@ -97,6 +103,7 @@ const mergedContributors = Array.from(
             onChange={(e) => setTargetType(e.target.value)}
             className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4"
           />
+
           <input
             value={targetName}
             onChange={(e) => setTargetName(e.target.value)}
@@ -120,6 +127,7 @@ const mergedContributors = Array.from(
           >
             작성
           </button>
+
           <button
             onClick={() => setPreview(true)}
             className={`rounded-lg px-4 py-2 text-sm font-bold ${
@@ -131,14 +139,14 @@ const mergedContributors = Array.from(
         </div>
 
         <GuideImageUploader
-  content={content}
-  onReplaceContent={setContent}
-  onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)}
-/>
+          content={content}
+          onReplaceContent={setContent}
+          onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)}
+        />
 
         {preview ? (
-          <div className="min-h-96 whitespace-pre-wrap rounded-xl border border-zinc-700 bg-zinc-950 p-4 text-sm leading-7">
-            {content || "미리볼 내용이 없습니다."}
+          <div className="min-h-96 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-950 p-4">
+            <MarkdownViewer content={content || "미리볼 내용이 없습니다."} />
           </div>
         ) : (
           <textarea
