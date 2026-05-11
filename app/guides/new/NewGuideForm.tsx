@@ -44,7 +44,7 @@ const guideTargets = {
   },
 } as const;
 
-const [creatorCharacter, setCreatorCharacter] = useState("");
+
 
 type Category = keyof typeof guideTargets;
 
@@ -64,6 +64,7 @@ function getCategoryLabel(category: string) {
 export default function NewGuideForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [creatorCharacter, setCreatorCharacter] = useState("");
 
   const defaultCategory = (searchParams.get("category") ?? "general") as Category;
   const defaultTargetType = searchParams.get("targetType") ?? "";
