@@ -20,6 +20,15 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
   const [content, setContent] = useState(guide.content ?? "");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [contributorName, setContributorName] = useState("");
+
+const mergedContributors = Array.from(
+  new Set([
+    ...(guide.contributors ?? []),
+    ...(contributorName ? [contributorName] : []),
+  ])
+);
+
 
   async function handleSave() {
     setSaving(true);
@@ -27,14 +36,16 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
     const { error } = await supabase
       .from("guides")
       .update({
-        title,
-        category,
-        target_type: targetType || null,
-        target_name: targetName || null,
-        video_url: videoUrl || null,
-        content,
-        updated_at: new Date().toISOString(),
-      })
+  title,
+  category,
+  target_type: targetType || null,
+  target_name: targetName || null,
+  video_url: videoUrl || null,
+  content,
+  updated_at: new Date().toISOString(),
+
+  contributors: mergedContributors,
+})
       .eq("id", guide.id);
 
     setSaving(false);
@@ -50,7 +61,18 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
   return (
     <PageContainer>
       <SectionTitle title="공략 수정" description="작성한 공략을 수정합니다." />
+<div>
+  <label className="text-sm font-bold text-zinc-300">
+    수정 기여자
+  </label>
 
+  <input
+    value={contributorName}
+    onChange={(e) => setContributorName(e.target.value)}
+    placeholder="수정한 캐릭터명"
+    className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+  />
+</div>
       <div className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <select
           value={category}

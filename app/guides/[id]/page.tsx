@@ -78,6 +78,26 @@ export default async function GuideDetailPage({
         </div>
 
         <h1 className="mt-5 text-3xl font-black">{guide.title}</h1>
+        <div className="mt-4 space-y-2 text-sm">
+  {guide.creator_character && (
+    <div className="text-yellow-400">
+      최초 작성자:
+      <span className="ml-2 font-bold">
+        {guide.creator_character}
+      </span>
+    </div>
+  )}
+
+  {guide.contributors &&
+    guide.contributors.length > 0 && (
+      <div className="text-zinc-400">
+        기여자:
+        <span className="ml-2">
+          {guide.contributors.join(", ")}
+        </span>
+      </div>
+    )}
+</div>
 
         <div className="mt-5 flex flex-wrap gap-3">
           <Link

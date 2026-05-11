@@ -8,6 +8,10 @@ export type Guide = {
   target_name: string | null;
   content: string;
   video_url: string | null;
+
+  creator_character: string | null;
+  contributors: string[] | null;
+
   created_at: string;
   updated_at: string;
 };
