@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageContainer from "../../../components/ui/PageContainer";
 import SectionTitle from "../../../components/ui/SectionTitle";
 import { supabase } from "../../../lib/supabase/client";
@@ -65,6 +65,10 @@ export default function NewGuideForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [creatorCharacter, setCreatorCharacter] = useState("");
+  useEffect(() => {
+  const auth = JSON.parse(localStorage.getItem("guild-auth") ?? "{}");
+  setCreatorCharacter(auth.mainCharacter ?? "");
+}, []);
 
   const defaultCategory = (searchParams.get("category") ?? "general") as Category;
   const defaultTargetType = searchParams.get("targetType") ?? "";
@@ -142,6 +146,10 @@ export default function NewGuideForm() {
       alert("대상 종류를 선택하세요.");
       return;
     }
+    if (!creatorCharacter) {
+  alert("로그인 정보가 없습니다. 다시 로그인해주세요.");
+  return;
+}
 
     setSaving(true);
 
@@ -154,11 +162,8 @@ export default function NewGuideForm() {
   target_name: targetName || targetType,
   video_url: videoUrl || null,
   content,
-
-  creator_character: creatorCharacter || null,
-  contributors: creatorCharacter
-    ? [creatorCharacter]
-    : [],
+  creator_character: creatorCharacter,
+  contributors: [creatorCharacter],
 })
       .select("id")
       .single();
@@ -176,16 +181,14 @@ export default function NewGuideForm() {
   return (
     <PageContainer>
       <div>
-  <label className="text-sm font-bold text-zinc-300">
-    최초 작성자
-  </label>
+  <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+  <p className="text-xs font-bold text-zinc-500">최초 작성자</p>
+  <p className="mt-2 font-black text-yellow-300">
+    {creatorCharacter || "로그인 정보 확인 중..."}
+  </p>
+</div>
 
-  <input
-    value={creatorCharacter}
-    onChange={(e) => setCreatorCharacter(e.target.value)}
-    placeholder="대표 캐릭터명"
-    className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
-  />
+  
 </div>
       <SectionTitle
         title="공략 작성"
