@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -20,28 +21,13 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
   const [content, setContent] = useState(guide.content ?? "");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
-<<<<<<< HEAD
-  const [contributorName, setContributorName] = useState("");
-=======
   const [editorCharacter, setEditorCharacter] = useState("");
->>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
 
-<<<<<<< HEAD
-const mergedContributors = Array.from(
-  new Set([
-    ...(guide.contributors ?? []),
-    ...(contributorName ? [contributorName] : []),
-  ])
-);
-
-
-=======
   useEffect(() => {
     const auth = JSON.parse(localStorage.getItem("guild-auth") ?? "{}");
     setEditorCharacter(auth.mainCharacter ?? "");
   }, []);
 
->>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
   async function handleSave() {
     if (!title.trim()) {
       alert("제목을 입력하세요.");
@@ -49,7 +35,7 @@ const mergedContributors = Array.from(
     }
 
     if (!editorCharacter) {
-      alert("로그인 정보가 없습니다. 다시 로그인해주세요.");
+      alert("로그인 정보가 없습니다.");
       return;
     }
 
@@ -62,18 +48,6 @@ const mergedContributors = Array.from(
     const { error } = await supabase
       .from("guides")
       .update({
-<<<<<<< HEAD
-  title,
-  category,
-  target_type: targetType || null,
-  target_name: targetName || null,
-  video_url: videoUrl || null,
-  content,
-  updated_at: new Date().toISOString(),
-
-  contributors: mergedContributors,
-})
-=======
         title,
         category,
         target_type: targetType || null,
@@ -83,7 +57,6 @@ const mergedContributors = Array.from(
         updated_at: new Date().toISOString(),
         contributors: mergedContributors,
       })
->>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
       .eq("id", guide.id);
 
     setSaving(false);
@@ -98,21 +71,11 @@ const mergedContributors = Array.from(
 
   return (
     <PageContainer>
-      <SectionTitle title="공략 수정" description="작성한 공략을 수정합니다." />
-<div>
-  <label className="text-sm font-bold text-zinc-300">
-    수정 기여자
-  </label>
+      <SectionTitle
+        title="공략 수정"
+        description="작성한 공략을 수정합니다."
+      />
 
-<<<<<<< HEAD
-  <input
-    value={contributorName}
-    onChange={(e) => setContributorName(e.target.value)}
-    placeholder="수정한 캐릭터명"
-    className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
-  />
-</div>
-=======
       <div className="mb-5 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
         <p className="text-xs font-bold text-zinc-500">수정자</p>
         <p className="mt-2 font-black text-yellow-300">
@@ -120,7 +83,6 @@ const mergedContributors = Array.from(
         </p>
       </div>
 
->>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
       <div className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <select
           value={category}
@@ -143,12 +105,14 @@ const mergedContributors = Array.from(
           <input
             value={targetType}
             onChange={(e) => setTargetType(e.target.value)}
+            placeholder="대상 종류"
             className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4"
           />
 
           <input
             value={targetName}
             onChange={(e) => setTargetName(e.target.value)}
+            placeholder="대상 이름"
             className="h-12 rounded-xl border border-zinc-700 bg-zinc-950 px-4"
           />
         </div>
@@ -162,18 +126,24 @@ const mergedContributors = Array.from(
 
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setPreview(false)}
             className={`rounded-lg px-4 py-2 text-sm font-bold ${
-              !preview ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-400"
+              !preview
+                ? "bg-violet-600 text-white"
+                : "bg-zinc-800 text-zinc-400"
             }`}
           >
             작성
           </button>
 
           <button
+            type="button"
             onClick={() => setPreview(true)}
             className={`rounded-lg px-4 py-2 text-sm font-bold ${
-              preview ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-400"
+              preview
+                ? "bg-violet-600 text-white"
+                : "bg-zinc-800 text-zinc-400"
             }`}
           >
             미리보기
@@ -183,12 +153,16 @@ const mergedContributors = Array.from(
         <GuideImageUploader
           content={content}
           onReplaceContent={setContent}
-          onUploaded={(markdown) => setContent((prev) => `${prev}${markdown}`)}
+          onUploaded={(markdown) =>
+            setContent((prev) => `${prev}${markdown}`)
+          }
         />
 
         {preview ? (
           <div className="min-h-96 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-950 p-4">
-            <MarkdownViewer content={content || "미리볼 내용이 없습니다."} />
+            <MarkdownViewer
+              content={content || "미리볼 내용이 없습니다."}
+            />
           </div>
         ) : (
           <textarea
@@ -200,6 +174,7 @@ const mergedContributors = Array.from(
         )}
 
         <button
+          type="button"
           onClick={handleSave}
           disabled={saving}
           className="h-12 rounded-xl bg-violet-600 px-6 font-bold text-white hover:bg-violet-500 disabled:opacity-50"
@@ -210,3 +185,4 @@ const mergedContributors = Array.from(
     </PageContainer>
   );
 }
+
