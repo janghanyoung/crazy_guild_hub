@@ -205,7 +205,7 @@ function Panel({
 }: {
   title: string;
   subtitle?: string;
-  children: React;
+  children: ReactNode;
 }) {
   return (
     <section className="rounded-[1.75rem] border border-zinc-800 bg-zinc-950/80 p-5 shadow-xl">
