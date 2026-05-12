@@ -44,8 +44,13 @@ const guideTargets = {
   },
 } as const;
 
+<<<<<<< HEAD
+const [creatorCharacter, setCreatorCharacter] = useState("");
+
+=======
 
 
+>>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
 type Category = keyof typeof guideTargets;
 
 function getCategoryLabel(category: string) {
@@ -156,6 +161,20 @@ export default function NewGuideForm() {
     const { data, error } = await supabase
       .from("guides")
       .insert({
+<<<<<<< HEAD
+  title,
+  category,
+  target_type: targetType,
+  target_name: targetName || targetType,
+  video_url: videoUrl || null,
+  content,
+
+  creator_character: creatorCharacter || null,
+  contributors: creatorCharacter
+    ? [creatorCharacter]
+    : [],
+})
+=======
   title,
   category,
   target_type: targetType,
@@ -165,6 +184,7 @@ export default function NewGuideForm() {
   creator_character: creatorCharacter,
   contributors: [creatorCharacter],
 })
+>>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
       .select("id")
       .single();
 
@@ -180,6 +200,20 @@ export default function NewGuideForm() {
 
   return (
     <PageContainer>
+<<<<<<< HEAD
+      <div>
+  <label className="text-sm font-bold text-zinc-300">
+    최초 작성자
+  </label>
+
+  <input
+    value={creatorCharacter}
+    onChange={(e) => setCreatorCharacter(e.target.value)}
+    placeholder="대표 캐릭터명"
+    className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+  />
+</div>
+=======
       <div>
   <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
   <p className="text-xs font-bold text-zinc-500">최초 작성자</p>
@@ -190,6 +224,7 @@ export default function NewGuideForm() {
 
   
 </div>
+>>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
       <SectionTitle
         title="공략 작성"
         description="정해진 분류와 대상에 맞춰 공략을 작성합니다."

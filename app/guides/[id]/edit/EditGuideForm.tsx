@@ -20,13 +20,28 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
   const [content, setContent] = useState(guide.content ?? "");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
+<<<<<<< HEAD
+  const [contributorName, setContributorName] = useState("");
+=======
   const [editorCharacter, setEditorCharacter] = useState("");
+>>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
 
+<<<<<<< HEAD
+const mergedContributors = Array.from(
+  new Set([
+    ...(guide.contributors ?? []),
+    ...(contributorName ? [contributorName] : []),
+  ])
+);
+
+
+=======
   useEffect(() => {
     const auth = JSON.parse(localStorage.getItem("guild-auth") ?? "{}");
     setEditorCharacter(auth.mainCharacter ?? "");
   }, []);
 
+>>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
   async function handleSave() {
     if (!title.trim()) {
       alert("제목을 입력하세요.");
@@ -47,6 +62,18 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
     const { error } = await supabase
       .from("guides")
       .update({
+<<<<<<< HEAD
+  title,
+  category,
+  target_type: targetType || null,
+  target_name: targetName || null,
+  video_url: videoUrl || null,
+  content,
+  updated_at: new Date().toISOString(),
+
+  contributors: mergedContributors,
+})
+=======
         title,
         category,
         target_type: targetType || null,
@@ -56,6 +83,7 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
         updated_at: new Date().toISOString(),
         contributors: mergedContributors,
       })
+>>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
       .eq("id", guide.id);
 
     setSaving(false);
@@ -71,7 +99,20 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
   return (
     <PageContainer>
       <SectionTitle title="공략 수정" description="작성한 공략을 수정합니다." />
+<div>
+  <label className="text-sm font-bold text-zinc-300">
+    수정 기여자
+  </label>
 
+<<<<<<< HEAD
+  <input
+    value={contributorName}
+    onChange={(e) => setContributorName(e.target.value)}
+    placeholder="수정한 캐릭터명"
+    className="mt-2 h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 text-white"
+  />
+</div>
+=======
       <div className="mb-5 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
         <p className="text-xs font-bold text-zinc-500">수정자</p>
         <p className="mt-2 font-black text-yellow-300">
@@ -79,6 +120,7 @@ export default function EditGuideForm({ guide }: { guide: Guide }) {
         </p>
       </div>
 
+>>>>>>> 417782e4603e9762c9b7fbbb3d3ee78362117b0c
       <div className="space-y-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <select
           value={category}
