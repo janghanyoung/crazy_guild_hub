@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+
+
 const notices = [
   { tag: "필독", title: "이번 주 길드 공지 확인", date: "2026.05.12" },
   { tag: "레이드", title: "카제로스 트라이 파티 모집 중", date: "2026.05.11" },
@@ -202,7 +205,7 @@ function Panel({
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  children: React;
 }) {
   return (
     <section className="rounded-[1.75rem] border border-zinc-800 bg-zinc-950/80 p-5 shadow-xl">
